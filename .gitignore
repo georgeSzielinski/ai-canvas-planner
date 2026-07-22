@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -216,3 +216,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Canvas Sweeper frontend and local artifacts
+.env.*
+!.env.example
+node_modules/
+.next/
+coverage/
+playwright-report/
+test-results/
+*.db
+*.sqlite
+*.sqlite3
+credentials*.json
+client_secret*.json
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+.DS_Store
+*.tsbuildinfo

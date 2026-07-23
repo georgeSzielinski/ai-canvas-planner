@@ -1,8 +1,10 @@
 from copy import deepcopy
-from typing import Any
+from datetime import datetime
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
+from app.core.datetime_utils import as_utc
 from app.models import Assignment, Course, Notification, RoutineBlock, StudySession, UserSettings
 from app.services.demo_data import ASSIGNMENTS, COURSES, NOTIFICATIONS, ROUTINE, SESSIONS
 
@@ -27,7 +29,7 @@ def initialize_user_workspace(
                 title=item["title"],
                 description=item["description"],
                 assignment_type=item["type"],
-                due_at=item["due_at"],
+                due_at=as_utc(cast(datetime, item["due_at"])),
                 points=item["points"],
                 grade_weight=item["grade_weight"],
                 estimated_minutes=item["estimated_minutes"],
@@ -52,6 +54,7 @@ def initialize_user_workspace(
                     **item,
                     "id": session_ids[item["id"]],
                     "assignment_id": assignment_ids[item["assignment_id"]],
+                    "start_at": as_utc(cast(datetime, item["start_at"])),
                 }
             )
             for item in SESSIONS

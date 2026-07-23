@@ -90,7 +90,7 @@ export function notificationFromWire(item: NotificationWire): Notification {
 
 export const bootstrapService = {
   async get(): Promise<BootstrapData> {
-    const payload = await apiClient.request<BootstrapWire>("/demo/bootstrap");
+    const payload = await apiClient.request<BootstrapWire>("/workspace/bootstrap");
     return {
       courses: payload.courses.map((course) => ({
         id: course.id,

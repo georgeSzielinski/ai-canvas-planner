@@ -18,7 +18,7 @@ Phase 3 establishes the production-oriented Canvas ingestion foundation while in
 
 Validated on 2026-07-22:
 
-- `make test`: 50 frontend Vitest cases and 97 backend Pytest cases passed.
+- `make test`: 52 frontend Vitest cases and 104 backend Pytest cases passed.
 - `make lint`: ESLint, TypeScript, Ruff, and mypy passed.
 - `make build`: Next.js production build passed.
 - `cd frontend && npm run format:check`: passed.
@@ -29,6 +29,8 @@ Validated on 2026-07-22:
 - `docker compose config --quiet`, image builds, container startup, backend readiness, and frontend HTTP smoke test passed; smoke containers were then stopped.
 - `npm audit --omit=dev --audit-level=high`, `pip-audit`, and `pip check`: no known vulnerabilities or broken requirements reported.
 - Live Canvas identity verification against the configured Sequoia origin succeeded without exposing or persisting the credential.
+
+The post-release datetime hardening normalizes aware Canvas timestamps to UTC before persistence, restores SQLite-loaded naive UTC values at comparison and serialization boundaries, and rejects naive provider timestamps. Authenticated clients now load `/workspace/bootstrap`; the legacy `/demo/bootstrap` route remains isolated from real backend mode.
 
 Automated tests and E2E fixtures contain no real Canvas credential. Live provider identity verification passed using the ignored local credential; a complete browser login-and-sync acceptance run remains an operator step because it requires an authenticated developer account. See `docs/canvas-integration.md`.
 

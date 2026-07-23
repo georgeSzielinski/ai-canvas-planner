@@ -198,8 +198,7 @@ class ConnectionSchema(BaseModel):
     permissions: list[str]
 
 
-class DemoBootstrapSchema(BaseModel):
-    reference_date: datetime
+class WorkspaceBootstrapSchema(BaseModel):
     courses: list[CourseSchema]
     assignments: list[AssignmentSchema]
     sessions: list[StudySessionSchema]
@@ -207,6 +206,10 @@ class DemoBootstrapSchema(BaseModel):
     notifications: list[NotificationSchema]
     workload: list[WorkloadSchema]
     settings: AppSettingsSchema
+
+
+class DemoBootstrapSchema(WorkspaceBootstrapSchema):
+    reference_date: datetime
     canvas_connection: ConnectionSchema
     calendar_connection: ConnectionSchema
 

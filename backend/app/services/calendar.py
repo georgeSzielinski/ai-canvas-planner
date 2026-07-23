@@ -1,7 +1,7 @@
 import hashlib
 import json
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -9,6 +9,8 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.core.datetime_utils import as_utc as aware_utc
+from app.core.datetime_utils import utcnow
 from app.models import (
     Assignment,
     BusyEventCache,
@@ -65,14 +67,6 @@ class CredentialCipher:
                 status_code=503,
                 detail="Stored Google credentials cannot be decrypted. Reconnect your account.",
             ) from error
-
-
-def utcnow() -> datetime:
-    return datetime.now(UTC)
-
-
-def aware_utc(value: datetime) -> datetime:
-    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 def notify(database: Session, user_id: str, title: str, body: str) -> None:

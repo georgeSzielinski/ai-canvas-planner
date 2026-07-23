@@ -15,6 +15,7 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
+from app.core.datetime_utils import as_utc
 from app.db.session import get_db
 from app.models import AuthSession, OAuthState, OAuthStateLock, UserProfile
 
@@ -24,10 +25,6 @@ MAX_OAUTH_STATES_PER_REQUESTER = 10
 
 def hash_secret(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def aware_utc(value: datetime) -> datetime:
-    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 @dataclass(frozen=True)
@@ -88,7 +85,7 @@ def resolve_session(
         select(AuthSession).where(AuthSession.token_hash == hash_secret(token))
     )
     now = datetime.now(UTC)
-    if not session or session.revoked_at or aware_utc(session.expires_at) <= now:
+    if not session or session.revoked_at or as_utc(session.expires_at) <= now:
         if required:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

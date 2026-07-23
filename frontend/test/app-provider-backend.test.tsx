@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { AppProvider, useApp } from "@/components/common/app-provider";
@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getAssignments: vi.fn(),
   getBootstrap: vi.fn(),
   getCanvasStatus: vi.fn(),
+  updateSettings: vi.fn(),
   authStatus: { value: "authenticated" },
   authUserId: { value: "user-one" },
 }));
@@ -23,7 +24,7 @@ vi.mock("@/services", () => ({
   dataMode: "backend",
   services: {
     assignments: { update: vi.fn() },
-    settings: { update: vi.fn() },
+    settings: { update: mocks.updateSettings },
     canvai: { proposeScheduleChange: vi.fn() },
     insights: { get: vi.fn().mockResolvedValue([]) },
   },
@@ -62,7 +63,14 @@ const connectedStatus = {
 };
 
 function Probe() {
-  const { assignments, backendMode, canvasError, refreshCanvasWorkspace } = useApp();
+  const {
+    assignments,
+    backendMode,
+    canvasError,
+    refreshCanvasWorkspace,
+    settings,
+    updateSettings,
+  } = useApp();
   useEffect(() => {
     latestRefresh = refreshCanvasWorkspace;
   }, [refreshCanvasWorkspace]);
@@ -72,6 +80,10 @@ function Probe() {
         ? `${assignments.length}:${assignments[0]?.source}:${assignments.at(-1)?.title}`
         : "demo"}
       {canvasError ? `:${canvasError}` : ""}
+      <output data-testid="profile-id">{settings.profile.id}</output>
+      <button type="button" onClick={() => updateSettings(settings)}>
+        Save unrelated settings
+      </button>
     </div>
   );
 }
@@ -102,6 +114,7 @@ beforeEach(() => {
   );
   mocks.getCanvasStatus.mockReset().mockResolvedValue(connectedStatus);
   mocks.getAssignments.mockReset();
+  mocks.updateSettings.mockReset().mockImplementation((settings) => Promise.resolve(settings));
 });
 
 it("hydrates Canvas after bootstrap and loads every assignment page without a race", async () => {
@@ -234,6 +247,7 @@ it("clears the previous user's workspace when the next user's bootstrap fails", 
 
   expect(screen.getByText("0:undefined:undefined")).toBeInTheDocument();
   await waitFor(() => expect(screen.getByText("0:undefined:undefined")).toBeInTheDocument());
+  expect(screen.getByTestId("profile-id")).toHaveTextContent("");
 });
 
 it("treats a superseded refresh failure as cancellation", async () => {
@@ -265,4 +279,36 @@ it("treats a superseded refresh failure as cancellation", async () => {
   });
 
   expect(screen.queryByText(/Canvas data could not be refreshed/)).not.toBeInTheDocument();
+});
+
+it("stays in authenticated mode and keeps unrelated controls active after Canvas fails", async () => {
+  const realSettings = {
+    ...defaultSettings,
+    profile: { ...defaultSettings.profile, id: "user-one", displayName: "Real User" },
+  };
+  mocks.getBootstrap.mockResolvedValueOnce({
+    courses: [],
+    assignments: [],
+    sessions: [],
+    routine: [],
+    workload: [],
+    settings: realSettings,
+    notifications: [],
+  });
+  mocks.getCanvasStatus.mockRejectedValue(new Error("Canvas unavailable"));
+
+  render(
+    <AppProvider>
+      <Probe />
+    </AppProvider>,
+  );
+
+  await waitFor(() =>
+    expect(screen.getByText(/Canvas data could not be refreshed/)).toBeInTheDocument(),
+  );
+  expect(screen.queryByText("demo")).not.toBeInTheDocument();
+  expect(screen.getByTestId("profile-id")).toHaveTextContent("user-one");
+
+  fireEvent.click(screen.getByRole("button", { name: "Save unrelated settings" }));
+  await waitFor(() => expect(mocks.updateSettings).toHaveBeenCalledWith(realSettings));
 });

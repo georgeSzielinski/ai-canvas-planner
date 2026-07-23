@@ -42,6 +42,24 @@ import { dataMode, services } from "@/services";
 
 const SETTINGS_KEY = "canvas-sweeper:settings";
 const THEME_KEY = "canvas-sweeper:theme";
+const backendDefaultSettings: AppSettings = {
+  ...defaultSettings,
+  profile: {
+    ...defaultSettings.profile,
+    id: "",
+    displayName: "",
+    timeZone: "UTC",
+    schoolYear: "",
+  },
+  subjects: [],
+  calendar: {
+    ...defaultSettings.calendar,
+    studyCalendar: "",
+    busyCalendars: [],
+    automaticPublishing: false,
+  },
+  ai: { ...defaultSettings.ai, enabled: false, provider: "" },
+};
 
 interface ToastState {
   id: number;
@@ -124,7 +142,9 @@ function ScopedAppProvider({
   const [insights, setInsights] = useState(() =>
     backendMode ? [] : structuredClone(initialInsights),
   );
-  const [settings, setSettings] = useState(() => structuredClone(defaultSettings));
+  const [settings, setSettings] = useState(() =>
+    structuredClone(backendMode ? backendDefaultSettings : defaultSettings),
+  );
   const [notifications, setNotifications] = useState(() =>
     backendMode ? [] : structuredClone(initialNotifications),
   );

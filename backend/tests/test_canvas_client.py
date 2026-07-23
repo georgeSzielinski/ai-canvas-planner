@@ -1,6 +1,7 @@
 import asyncio
 import gzip
 import json
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -8,9 +9,38 @@ import pytest
 from app.core.config import Settings
 from app.services.canvas_client import (
     CanvasApiClient,
+    CanvasAssignmentPayload,
     CanvasProviderError,
     EnvironmentCanvasCredentialProvider,
 )
+
+
+def test_canvas_payload_datetimes_are_aware_and_normalized_to_utc() -> None:
+    payload = CanvasAssignmentPayload.model_validate(
+        {
+            "id": 1,
+            "course_id": 2,
+            "name": "Timezone test",
+            "due_at": "2026-07-22T20:00:00Z",
+            "unlock_at": "2026-07-22T13:00:00-07:00",
+            "lock_at": None,
+            "submission": {
+                "submitted_at": "2026-07-22T12:30:00-07:00",
+                "graded_at": None,
+            },
+        }
+    )
+
+    assert payload.due_at == datetime(2026, 7, 22, 20, 0, tzinfo=UTC)
+    assert payload.unlock_at == datetime(2026, 7, 22, 20, 0, tzinfo=UTC)
+    assert payload.lock_at is None
+    assert payload.submission is not None
+    assert payload.submission.submitted_at == datetime(2026, 7, 22, 19, 30, tzinfo=UTC)
+
+    with pytest.raises(ValueError, match="timezone"):
+        CanvasAssignmentPayload.model_validate(
+            {"id": 1, "course_id": 2, "name": "Naive", "due_at": "2026-07-22T20:00:00"}
+        )
 
 
 def run(coro):  # type: ignore[no-untyped-def]

@@ -33,6 +33,10 @@ Alembic is the only schema-change mechanism. Phase 3 head is `20260722_0005`.
 
 The environment Canvas token is intentionally absent from every table.
 
+### Datetime policy
+
+All persisted timestamps represent UTC. Provider timestamps must include a timezone offset and are normalized to UTC before persistence. PostgreSQL preserves timezone metadata; SQLite can return stored UTC wall-clock values as naive Python datetimes, so application boundaries restore UTC metadata before comparisons or serialization. Naive provider timestamps are rejected rather than guessed, and naive values from an unconfirmed local-time source must not be passed through the database normalization path.
+
 ## Study event ownership
 
 `study_sessions` adds `calendar_id`, `provider_event_id`, provider ETag, last published payload hash, publication timestamp, and manual-edit lock. These fields support idempotency and prove which remote event Canvas Sweeper may manage.

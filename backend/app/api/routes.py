@@ -5,6 +5,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.datetime_utils import as_utc
 from app.db.session import get_db
 from app.models import Assignment, Course, Notification, RoutineBlock, StudySession, UserSettings
 from app.schemas.domain import (
@@ -22,6 +23,7 @@ from app.schemas.domain import (
     StatusSchema,
     StudySessionSchema,
     WorkloadSchema,
+    WorkspaceBootstrapSchema,
 )
 from app.schemas.phase2 import ActionStatusSchema
 from app.services import assignments as assignment_service
@@ -163,38 +165,32 @@ def canvai_proposal(payload: CanvaiProposalRequest, _grant: CsrfSession) -> Sche
     return propose(payload.command)
 
 
-@api.get("/demo/bootstrap", response_model=DemoBootstrapSchema)
-def demo_bootstrap(database: DbSession, grant: CurrentSession) -> DemoBootstrapSchema:
-    stored_settings = database.scalar(
-        select(UserSettings).where(UserSettings.user_id == grant.user.id)
-    )
+def _workspace_bootstrap(database: Session, user_id: str) -> WorkspaceBootstrapSchema:
+    stored_settings = database.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
     if not stored_settings:
-        raise HTTPException(status_code=503, detail="Demo data has not been seeded")
+        raise HTTPException(status_code=503, detail="Workspace data has not been initialized")
     sessions = database.scalars(
         select(StudySession)
         .join(StudySession.assignment)
         .join(Assignment.course)
-        .where(Course.user_id == grant.user.id)
+        .where(Course.user_id == user_id)
     ).all()
-    routine = database.scalars(
-        select(RoutineBlock).where(RoutineBlock.user_id == grant.user.id)
-    ).all()
+    routine = database.scalars(select(RoutineBlock).where(RoutineBlock.user_id == user_id)).all()
     notifications = database.scalars(
-        select(Notification).where(Notification.user_id == grant.user.id)
+        select(Notification).where(Notification.user_id == user_id)
     ).all()
-    return DemoBootstrapSchema(
-        reference_date=REFERENCE_DATE,
+    return WorkspaceBootstrapSchema(
         courses=[
             CourseSchema.model_validate(item)
-            for item in database.scalars(select(Course).where(Course.user_id == grant.user.id))
+            for item in database.scalars(select(Course).where(Course.user_id == user_id))
         ],
-        assignments=assignment_service.list_assignments(database, grant.user.id),
+        assignments=assignment_service.list_assignments(database, user_id),
         sessions=[
             StudySessionSchema(
                 id=item.id,
                 assignment_id=item.assignment_id,
                 title=item.title,
-                start_at=item.start_at,
+                start_at=as_utc(item.start_at),
                 duration_minutes=item.duration_minutes,
                 status=item.status,
                 source=item.source,
@@ -203,8 +199,23 @@ def demo_bootstrap(database: DbSession, grant: CurrentSession) -> DemoBootstrapS
         ],
         routine=[RoutineBlockSchema.model_validate(item) for item in routine],
         notifications=[NotificationSchema.model_validate(item) for item in notifications],
-        workload=[WorkloadSchema.model_validate(item) for item in WORKLOAD],
+        workload=[],
         settings=AppSettingsSchema.model_validate(stored_settings.payload),
+    )
+
+
+@api.get("/workspace/bootstrap", response_model=WorkspaceBootstrapSchema)
+def workspace_bootstrap(database: DbSession, grant: CurrentSession) -> WorkspaceBootstrapSchema:
+    return _workspace_bootstrap(database, grant.user.id)
+
+
+@api.get("/demo/bootstrap", response_model=DemoBootstrapSchema)
+def demo_bootstrap(database: DbSession, grant: CurrentSession) -> DemoBootstrapSchema:
+    workspace = _workspace_bootstrap(database, grant.user.id)
+    return DemoBootstrapSchema(
+        **workspace.model_dump(exclude={"workload"}),
+        reference_date=REFERENCE_DATE,
+        workload=[WorkloadSchema.model_validate(item) for item in WORKLOAD],
         canvas_connection=ConnectionSchema(
             provider="canvas",
             status="demo",

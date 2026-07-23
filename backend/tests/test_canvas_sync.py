@@ -416,3 +416,77 @@ def test_per_user_lock_rejects_overlapping_sync(tmp_path: Path) -> None:
 
     run(scenario())
     db.close()
+
+
+def test_sync_handles_sqlite_naive_sync_and_submission_timestamps(tmp_path: Path) -> None:
+    db = database(tmp_path)
+    provider = FakeCanvasClient()
+    assignments = provider.assignments[10]
+    assert isinstance(assignments, list)
+    assignment = assignments[0]
+    assert isinstance(assignment, CanvasAssignmentPayload)
+    assert assignment.submission is not None
+    provider.assignments[10] = [
+        assignment.model_copy(
+            update={
+                "submission": assignment.submission.model_copy(
+                    update={"submitted_at": datetime(2026, 7, 22, 20, 0, tzinfo=UTC)}
+                )
+            }
+        )
+    ]
+    first = run(
+        synchronize_canvas(
+            db,
+            "user-demo",
+            provider,
+            base_url="https://sequoia.instructure.com",
+            include_concluded=False,
+        )
+    )
+    assert first.submission_states_updated == 1
+    db.close()
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'canvas-sync.sqlite3'}")
+    reloaded = Session(engine, expire_on_commit=False)
+    second = run(
+        synchronize_canvas(
+            reloaded,
+            "user-demo",
+            provider,
+            base_url="https://sequoia.instructure.com",
+            include_concluded=False,
+        )
+    )
+    assert second.assignments_unchanged == 1
+    assert second.submission_states_updated == 0
+    reloaded.close()
+
+
+def test_sync_recovers_sqlite_naive_stale_run_timestamp(tmp_path: Path) -> None:
+    db = database(tmp_path)
+    stale = CanvasSyncRun(
+        id="stale-run",
+        user_id="user-demo",
+        status="running",
+        started_at=datetime(2020, 7, 22, 20, 0, tzinfo=UTC),
+    )
+    db.add(stale)
+    db.commit()
+    db.expire_all()
+
+    report = run(
+        synchronize_canvas(
+            db,
+            "user-demo",
+            FakeCanvasClient(),
+            base_url="https://sequoia.instructure.com",
+            include_concluded=False,
+        )
+    )
+
+    assert report.status == "success"
+    persisted = db.get(CanvasSyncRun, "stale-run")
+    assert persisted is not None
+    assert persisted.status == "interrupted"
+    db.close()

@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Annotated
 from urllib.parse import urlsplit
 
@@ -9,6 +9,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import Settings, get_settings
+from app.core.datetime_utils import as_utc, utcnow
 from app.db.session import get_db
 from app.models import Assignment, CanvasConnection, CanvasSubmissionState, CanvasSyncRun, Course
 from app.schemas.canvas import (
@@ -70,7 +71,7 @@ CanvasClient = Annotated[CanvasSyncClient, Depends(get_canvas_client)]
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return utcnow()
 
 
 def _connection(database: Session, user_id: str) -> CanvasConnection | None:
@@ -90,9 +91,10 @@ def _connection_schema(
         return CanvasConnectionSchema(connected=False, configured=False, status="not_configured")
     if connection is None:
         return CanvasConnectionSchema(connected=False, configured=True, status="not_verified")
+    last_successful_sync_at = as_utc(connection.last_successful_sync_at)
     stale = (
-        connection.last_successful_sync_at is None
-        or connection.last_successful_sync_at < _now() - timedelta(hours=24)
+        last_successful_sync_at is None
+        or last_successful_sync_at < _now() - timedelta(hours=24)
         or connection.last_sync_status in {"partial", "failed", "interrupted"}
     )
     return CanvasConnectionSchema(
@@ -102,9 +104,9 @@ def _connection_schema(
         canvas_display_name=connection.canvas_display_name,
         canvas_user_id=connection.canvas_user_id,
         hostname=connection.hostname,
-        last_verified_at=connection.last_verified_at,
-        last_successful_sync_at=connection.last_successful_sync_at,
-        last_attempted_sync_at=connection.last_attempted_sync_at,
+        last_verified_at=as_utc(connection.last_verified_at),
+        last_successful_sync_at=last_successful_sync_at,
+        last_attempted_sync_at=as_utc(connection.last_attempted_sync_at),
         last_sync_status=connection.last_sync_status,
         last_error_code=connection.last_error_code,
         include_concluded_courses=connection.include_concluded_courses,
@@ -215,14 +217,14 @@ def _course_schema(database: Session, course: Course) -> CanvasCourseSchema:
         enrollment_state=course.enrollment_state,
         workflow_state=course.workflow_state,
         term_name=course.term_name,
-        start_at=course.start_at,
-        end_at=course.end_at,
+        start_at=as_utc(course.start_at),
+        end_at=as_utc(course.end_at),
         concluded=course.concluded,
         favorite=course.favorite,
         selected_for_sync=course.selected_for_sync,
         archived=course.archived,
         assignment_count=int(count or 0),
-        last_seen_at=course.last_seen_at,
+        last_seen_at=as_utc(course.last_seen_at),
     )
 
 
@@ -271,6 +273,7 @@ def _assignment_schema(assignment: Assignment) -> CanvasAssignmentSchema:
     course = assignment.course
     submission = assignment.canvas_submission
     now = _now()
+    lock_at = as_utc(assignment.lock_at)
     return CanvasAssignmentSchema(
         id=assignment.id,
         canvas_assignment_id=assignment.canvas_assignment_id or "",
@@ -281,9 +284,9 @@ def _assignment_schema(assignment: Assignment) -> CanvasAssignmentSchema:
         category=assignment.assignment_type,
         category_reason=assignment.category_reason,
         canvas_url=assignment.canvas_url or None,
-        due_at=assignment.due_at,
-        unlock_at=assignment.unlock_at,
-        lock_at=assignment.lock_at,
+        due_at=as_utc(assignment.due_at),
+        unlock_at=as_utc(assignment.unlock_at),
+        lock_at=lock_at,
         points_possible=assignment.points,
         submission_types=assignment.submission_types,
         assignment_group=assignment.assignment_group,
@@ -293,8 +296,8 @@ def _assignment_schema(assignment: Assignment) -> CanvasAssignmentSchema:
         peer_reviews=assignment.peer_reviews,
         workflow_state=submission.workflow_state if submission else None,
         submission_status=assignment.submission_status,
-        submitted_at=submission.submitted_at if submission else None,
-        graded_at=submission.graded_at if submission else None,
+        submitted_at=as_utc(submission.submitted_at) if submission else None,
+        graded_at=as_utc(submission.graded_at) if submission else None,
         score=submission.score if submission else None,
         grade=submission.grade if submission else None,
         late=submission.late if submission else False,
@@ -303,13 +306,13 @@ def _assignment_schema(assignment: Assignment) -> CanvasAssignmentSchema:
         attempt_count=submission.attempt_count if submission else None,
         seconds_late=submission.seconds_late if submission else None,
         completed=assignment.completion_state == "completed",
-        locked=bool(assignment.lock_at and assignment.lock_at <= now),
+        locked=bool(lock_at and lock_at <= now),
         archived=assignment.archived,
         concluded_course=course.concluded,
-        canvas_created_at=assignment.canvas_created_at,
-        canvas_updated_at=assignment.canvas_updated_at,
-        first_seen_at=assignment.first_seen_at,
-        last_seen_at=assignment.last_seen_at,
+        canvas_created_at=as_utc(assignment.canvas_created_at),
+        canvas_updated_at=as_utc(assignment.canvas_updated_at),
+        first_seen_at=as_utc(assignment.first_seen_at),
+        last_seen_at=as_utc(assignment.last_seen_at),
     )
 
 

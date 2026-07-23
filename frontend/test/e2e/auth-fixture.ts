@@ -208,7 +208,7 @@ export async function installAuthenticatedSession(page: Page) {
       await route.fulfill({ json: user });
       return;
     }
-    if (path === "/api/v1/demo/bootstrap") {
+    if (path === "/api/v1/workspace/bootstrap") {
       await route.fulfill({
         json: {
           courses: courses.map(courseWire),

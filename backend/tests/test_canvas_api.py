@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.api.canvas_routes import get_canvas_client
 from app.core.config import Settings, get_settings
@@ -18,6 +19,7 @@ from app.services.canvas_client import (
 class ApiCanvasClient:
     def __init__(self) -> None:
         self.error: CanvasProviderError | None = None
+        self.assignments: list[CanvasAssignmentPayload] | None = None
 
     async def verify(self) -> CanvasIdentity:
         if self.error:
@@ -48,6 +50,8 @@ class ApiCanvasClient:
     async def list_assignments(self, course_id: int) -> list[CanvasAssignmentPayload]:
         if course_id == 31:
             return []
+        if self.assignments is not None:
+            return self.assignments
         return [
             CanvasAssignmentPayload(
                 id=300,
@@ -112,6 +116,9 @@ def test_verify_sync_list_filter_and_course_selection(client: TestClient) -> Non
     assert synced.json()["status"] == "success"
     assert synced.json()["courses_imported"] == 2
     assert synced.json()["assignments_created"] == 1
+    status = client.get("/api/v1/canvas/status")
+    assert status.status_code == 200
+    assert status.json()["data_stale"] is False
 
     courses = client.get("/api/v1/canvas/courses?include_concluded=true").json()
     assert [item["name"] for item in courses] == ["API Course", "Past Course"]
@@ -212,6 +219,63 @@ def test_canvas_assignment_detail_and_user_isolation(client: TestClient) -> None
     listing = client.get("/api/v1/canvas/assignments").text
     assert "Other user's private assignment" not in listing
     assert client.get("/api/v1/canvas/assignments/other-assignment").status_code == 404
+
+
+def test_canvas_assignment_endpoints_normalize_sqlite_datetimes(client: TestClient) -> None:
+    provider = ApiCanvasClient()
+    provider.assignments = [
+        CanvasAssignmentPayload.model_validate(
+            {
+                "id": 300,
+                "course_id": 30,
+                "name": "Timezone assignment",
+                "due_at": "2026-07-22T20:00:00Z",
+                "unlock_at": "2026-07-22T13:00:00-07:00",
+                "lock_at": "2020-07-22T13:00:00-07:00",
+                "submission": {
+                    "workflow_state": "graded",
+                    "submitted_at": "2026-07-22T12:30:00-07:00",
+                    "graded_at": "2026-07-22T20:00:00Z",
+                    "updated_at": "2026-07-22T13:15:00-07:00",
+                },
+            }
+        ),
+        CanvasAssignmentPayload(
+            id=301,
+            course_id=30,
+            name="Nullable dates",
+            due_at=None,
+            unlock_at=None,
+            lock_at=None,
+        ),
+    ]
+    configure(provider)
+    assert client.post("/api/v1/canvas/sync", json={}).status_code == 200
+
+    dependency = app.dependency_overrides[get_db]
+    generator = dependency()
+    database = next(generator)
+    stored = database.scalar(select(Assignment).where(Assignment.canvas_assignment_id == "300"))
+    assert stored is not None
+    assert stored.due_at is not None and stored.due_at.tzinfo is None
+    assert stored.unlock_at is not None and stored.unlock_at.tzinfo is None
+    assert stored.lock_at is not None and stored.lock_at.tzinfo is None
+    generator.close()
+
+    listing = client.get("/api/v1/canvas/assignments?page=1&page_size=100")
+    assert listing.status_code == 200
+    items = {item["canvas_assignment_id"]: item for item in listing.json()["items"]}
+    assert items["300"]["due_at"] == "2026-07-22T20:00:00Z"
+    assert items["300"]["unlock_at"] == "2026-07-22T20:00:00Z"
+    assert items["300"]["locked"] is True
+    assert items["301"]["due_at"] is None
+    assert items["301"]["unlock_at"] is None
+    assert items["301"]["lock_at"] is None
+
+    detail = client.get(f"/api/v1/canvas/assignments/{items['300']['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["submitted_at"] == "2026-07-22T19:30:00Z"
+    assert detail.json()["graded_at"] == "2026-07-22T20:00:00Z"
 
 
 def test_course_filters_are_deterministically_sorted(client: TestClient) -> None:

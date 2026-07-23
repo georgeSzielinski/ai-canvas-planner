@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.datetime_utils import as_utc, utcnow
 from app.models import Assignment, CanvasConnection, CanvasSubmissionState, CanvasSyncRun, Course
 from app.services.canvas_client import (
     CanvasAssignmentPayload,
@@ -56,10 +57,6 @@ class CanvasSyncReport(BaseModel):
 _locks: dict[str, asyncio.Lock] = {}
 
 
-def utcnow() -> datetime:
-    return datetime.now(UTC)
-
-
 def _stable_id(prefix: str, user_id: str, source_id: int | str) -> str:
     digest = hashlib.sha256(f"{user_id}:{source_id}".encode()).hexdigest()[:24]
     return f"{prefix}-{digest}"
@@ -91,7 +88,7 @@ def _start_run(database: Session, user_id: str) -> CanvasSyncRun:
             )
         ).all()
     )
-    if any(item.started_at >= stale_before for item in running):
+    if any(as_utc(item.started_at) >= stale_before for item in running):
         raise CanvasSyncInProgress("A Canvas synchronization is already running for this user.")
     for item in running:
         item.status = "interrupted"
@@ -161,8 +158,8 @@ def _upsert_course(
     item.workflow_state = payload.workflow_state
     item.term_id = str(payload.term.id) if payload.term and payload.term.id is not None else None
     item.term_name = payload.term.name if payload.term else None
-    item.start_at = payload.start_at or (payload.term.start_at if payload.term else None)
-    item.end_at = payload.end_at or (payload.term.end_at if payload.term else None)
+    item.start_at = as_utc(payload.start_at or (payload.term.start_at if payload.term else None))
+    item.end_at = as_utc(payload.end_at or (payload.term.end_at if payload.term else None))
     item.concluded = _course_is_concluded(payload)
     item.favorite = payload.is_favorite
     item.last_seen_at = now
@@ -238,8 +235,8 @@ def _upsert_submission(
     values = {
         "workflow_state": source.workflow_state,
         "submitted": bool(source.submitted_at or source.workflow_state in {"submitted", "graded"}),
-        "submitted_at": source.submitted_at,
-        "graded_at": source.graded_at,
+        "submitted_at": as_utc(source.submitted_at),
+        "graded_at": as_utc(source.graded_at),
         "score": source.score,
         "grade": source.grade,
         "late": source.late,
@@ -247,7 +244,7 @@ def _upsert_submission(
         "excused": source.excused,
         "attempt_count": source.attempt,
         "seconds_late": source.seconds_late,
-        "last_source_update_at": source.updated_at,
+        "last_source_update_at": as_utc(source.updated_at),
     }
     if item is None:
         item = CanvasSubmissionState(
@@ -258,7 +255,15 @@ def _upsert_submission(
         )
         database.add(item)
         return True
-    changed = any(getattr(item, field) != value for field, value in values.items())
+    datetime_fields = {"submitted_at", "graded_at", "last_source_update_at"}
+    changed = any(
+        (
+            as_utc(getattr(item, field)) != value
+            if field in datetime_fields
+            else getattr(item, field) != value
+        )
+        for field, value in values.items()
+    )
     for field, value in values.items():
         setattr(item, field, value)
     return changed
@@ -295,7 +300,7 @@ def _upsert_assignment(
             description=description,
             assignment_type=classification.category,
             category_reason=classification.reason,
-            due_at=payload.due_at,
+            due_at=as_utc(payload.due_at),
             points=payload.points_possible or 0,
             estimated_minutes=0,
             priority="low",
@@ -320,9 +325,9 @@ def _upsert_assignment(
     item.description = description
     item.assignment_type = classification.category
     item.category_reason = classification.reason
-    item.due_at = payload.due_at
-    item.unlock_at = payload.unlock_at
-    item.lock_at = payload.lock_at
+    item.due_at = as_utc(payload.due_at)
+    item.unlock_at = as_utc(payload.unlock_at)
+    item.lock_at = as_utc(payload.lock_at)
     item.points = payload.points_possible or 0
     item.submission_types = payload.submission_types
     item.assignment_group = group
@@ -330,8 +335,8 @@ def _upsert_assignment(
     item.published = payload.published
     item.omitted_from_final_grade = payload.omit_from_final_grade
     item.peer_reviews = payload.peer_reviews
-    item.canvas_created_at = payload.created_at
-    item.canvas_updated_at = payload.updated_at
+    item.canvas_created_at = as_utc(payload.created_at)
+    item.canvas_updated_at = as_utc(payload.updated_at)
     item.last_seen_at = now
     item.source_hash = source_hash
     item.archived = False
@@ -358,8 +363,8 @@ def report_from_run(run: CanvasSyncRun) -> CanvasSyncReport:
         submission_states_updated=run.submission_states_updated,
         course_failures=run.course_failures,
         warnings=run.warnings,
-        started_at=run.started_at,
-        completed_at=run.completed_at,
+        started_at=as_utc(run.started_at),
+        completed_at=as_utc(run.completed_at),
         error_code=run.error_code,
     )
 

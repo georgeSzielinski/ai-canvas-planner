@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.datetime_utils import as_utc
 from app.models import Assignment, Course
 from app.schemas.domain import AssignmentAnalysis, AssignmentSchema, AssignmentUpdate
 
@@ -12,7 +13,7 @@ def to_schema(assignment: Assignment) -> AssignmentSchema:
         title=assignment.title,
         description=assignment.description,
         type=assignment.assignment_type,
-        due_at=assignment.due_at,
+        due_at=as_utc(assignment.due_at),
         points=assignment.points,
         grade_weight=assignment.grade_weight,
         estimated_minutes=assignment.estimated_minutes,

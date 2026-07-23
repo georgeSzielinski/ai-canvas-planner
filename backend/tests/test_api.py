@@ -23,6 +23,18 @@ def test_demo_bootstrap(client: TestClient) -> None:
     assert payload["settings"]["profile"]["display_name"] == "Maya Kessler"
 
 
+def test_authenticated_workspace_bootstrap_excludes_demo_state(client: TestClient) -> None:
+    response = client.get("/api/v1/workspace/bootstrap")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["assignments"]
+    assert payload["workload"] == []
+    assert "reference_date" not in payload
+    assert "canvas_connection" not in payload
+    assert "calendar_connection" not in payload
+
+
 def test_assignment_list(client: TestClient) -> None:
     response = client.get("/api/v1/assignments")
     assert response.status_code == 200

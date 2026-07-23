@@ -6,9 +6,10 @@ from typing import Any, Protocol, Self, TypeVar
 from urllib.parse import urlsplit
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, field_validator
 
 from app.core.config import Settings
+from app.core.datetime_utils import provider_datetime_utc
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
@@ -61,14 +62,21 @@ class CanvasIdentity(BaseModel):
     short_name: str | None = Field(default=None, max_length=255)
 
 
-class CanvasTermPayload(BaseModel):
+class CanvasPayload(BaseModel):
+    @field_validator("*", mode="after")
+    @classmethod
+    def normalize_provider_datetime(cls, value: Any) -> Any:
+        return provider_datetime_utc(value) if isinstance(value, datetime) else value
+
+
+class CanvasTermPayload(CanvasPayload):
     id: int | None = None
     name: str | None = None
     start_at: datetime | None = None
     end_at: datetime | None = None
 
 
-class CanvasCoursePayload(BaseModel):
+class CanvasCoursePayload(CanvasPayload):
     id: int
     name: str | None = None
     course_code: str | None = None
@@ -80,7 +88,7 @@ class CanvasCoursePayload(BaseModel):
     term: CanvasTermPayload | None = None
 
 
-class CanvasSubmissionPayload(BaseModel):
+class CanvasSubmissionPayload(CanvasPayload):
     workflow_state: str | None = None
     submitted_at: datetime | None = None
     graded_at: datetime | None = None
@@ -94,7 +102,7 @@ class CanvasSubmissionPayload(BaseModel):
     updated_at: datetime | None = None
 
 
-class CanvasAssignmentPayload(BaseModel):
+class CanvasAssignmentPayload(CanvasPayload):
     id: int
     course_id: int
     name: str = Field(min_length=1, max_length=1000)

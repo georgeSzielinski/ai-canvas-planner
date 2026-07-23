@@ -1,6 +1,10 @@
+from datetime import datetime
+from typing import cast
+
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from app.core.datetime_utils import as_utc
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.models import (
@@ -74,7 +78,7 @@ def seed_database(database: Session) -> None:
                 title=item["title"],
                 description=item["description"],
                 assignment_type=item["type"],
-                due_at=item["due_at"],
+                due_at=as_utc(cast(datetime, item["due_at"])),
                 points=item["points"],
                 grade_weight=item["grade_weight"],
                 estimated_minutes=item["estimated_minutes"],
@@ -92,7 +96,12 @@ def seed_database(database: Session) -> None:
             )
         )
     database.flush()
-    database.add_all([StudySession(**item) for item in SESSIONS])
+    database.add_all(
+        [
+            StudySession(**{**item, "start_at": as_utc(cast(datetime, item["start_at"]))})
+            for item in SESSIONS
+        ]
+    )
     database.add_all([RoutineBlock(user_id="user-demo", **item) for item in ROUTINE])
     database.add_all([Notification(user_id="user-demo", **item) for item in NOTIFICATIONS])
     database.add(UserSettings(id="settings-demo", user_id="user-demo", payload=DEFAULT_SETTINGS))

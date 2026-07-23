@@ -5,11 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "canvas-sweeper-backend"
 version = "0.1.0"
-description = "Phase 1 API and persistence foundation for Canvas Sweeper"
+description = "Authenticated Canvas and calendar integration API for Canvas Sweeper"
 requires-python = ">=3.11"
 dependencies = [
   "alembic>=1.14,<2",
-  "cryptography>=44,<47",
+  "cryptography>=48.0.1,<49",
   "fastapi>=0.116,<1",
   "httpx>=0.28,<1",
   "pydantic-settings>=2.7,<3",
@@ -20,7 +20,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "mypy>=1.14,<2",
-  "pytest>=8.3,<9",
+  "pip-audit>=2.10,<3",
+  "pytest>=9.0.3,<10",
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
 ]

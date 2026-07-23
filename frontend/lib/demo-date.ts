@@ -8,14 +8,16 @@ export function demoDate(dayOffset: number, time = "23:59"): string {
   return date.toISOString();
 }
 
-export const formatDemoDate = (value: string, includeTime = true): string =>
-  new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    ...(includeTime ? { hour: "numeric", minute: "2-digit" } : {}),
-    timeZone: "America/Los_Angeles",
-  }).format(new Date(value));
+export const formatDemoDate = (value: string | null, includeTime = true): string =>
+  value
+    ? new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        ...(includeTime ? { hour: "numeric", minute: "2-digit" } : {}),
+        timeZone: "America/Los_Angeles",
+      }).format(new Date(value))
+    : "No due date";
 
 export const demoLongDate = new Intl.DateTimeFormat("en-US", {
   weekday: "long",

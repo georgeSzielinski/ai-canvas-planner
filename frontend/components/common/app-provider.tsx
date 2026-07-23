@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useOptionalAuth } from "@/components/auth/auth-provider";
 import {
   assignments as initialAssignments,
@@ -25,8 +33,10 @@ import type {
   WeeklyWorkload,
 } from "@/types/domain";
 import type { CalendarConnection } from "@/types/calendar";
+import type { CanvasConnectionStatus, CanvasSyncReport } from "@/types/canvas";
 import { bootstrapService } from "@/services/bootstrap-service";
 import { calendarService } from "@/services/calendar-service";
+import { canvasService } from "@/services/canvas-service";
 import { notificationsService } from "@/services/notifications-service";
 import { dataMode, services } from "@/services";
 
@@ -44,6 +54,11 @@ interface AppContextValue {
   loading: boolean;
   calendarConnection: CalendarConnection | null;
   refreshCalendarConnection(): Promise<CalendarConnection>;
+  canvasConnection: CanvasConnectionStatus | null;
+  canvasSyncReport: CanvasSyncReport | null;
+  canvasLoading: boolean;
+  canvasError: string | null;
+  refreshCanvasWorkspace(): Promise<boolean>;
   courses: Course[];
   assignments: Assignment[];
   sessions: StudySession[];
@@ -74,6 +89,22 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const auth = useOptionalAuth();
+  const scope =
+    dataMode === "backend" ? `${auth?.status ?? "missing"}:${auth?.user?.id ?? ""}` : "local";
+  return (
+    <ScopedAppProvider key={scope} auth={auth}>
+      {children}
+    </ScopedAppProvider>
+  );
+}
+
+function ScopedAppProvider({
+  children,
+  auth,
+}: {
+  children: ReactNode;
+  auth: ReturnType<typeof useOptionalAuth>;
+}) {
   const backendMode = dataMode === "backend";
   const [courses, setCourses] = useState(() =>
     backendMode ? [] : structuredClone(initialCourses),
@@ -98,11 +129,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     backendMode ? [] : structuredClone(initialNotifications),
   );
   const [calendarConnection, setCalendarConnection] = useState<CalendarConnection | null>(null);
+  const [canvasConnection, setCanvasConnection] = useState<CanvasConnectionStatus | null>(null);
+  const [canvasSyncReport, setCanvasSyncReport] = useState<CanvasSyncReport | null>(null);
+  const [canvasLoading, setCanvasLoading] = useState(false);
+  const [canvasError, setCanvasError] = useState<string | null>(null);
   const [loading, setLoading] = useState(backendMode);
   const [proposal, setProposal] = useState<ScheduleProposal | null>(null);
   const [appliedCommands, setAppliedCommands] = useState<string[]>([]);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [theme, setThemeState] = useState<ThemePreference>("light");
+  const canvasRequestGeneration = useRef(0);
 
   useEffect(() => {
     if (backendMode) return;
@@ -145,6 +181,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCalendarConnection(connection);
     return connection;
   }, []);
+  const refreshCanvasWorkspace = useCallback(async () => {
+    if (!backendMode) return false;
+    const generation = canvasRequestGeneration.current + 1;
+    canvasRequestGeneration.current = generation;
+    setCanvasLoading(true);
+    setCanvasError(null);
+    try {
+      const connection = await canvasService.getStatus();
+      const includeConcluded = connection.include_concluded_courses;
+      const [canvasCourses, firstAssignmentPage, latest] = await Promise.all([
+        canvasService.getCourses(includeConcluded),
+        canvasService.getAssignments({
+          include_concluded: includeConcluded,
+          page: 1,
+          page_size: 100,
+        }),
+        canvasService.getLatestSync().catch(() => null),
+      ]);
+      const canvasAssignments = [...firstAssignmentPage.assignments];
+      const pageCount = Math.ceil(firstAssignmentPage.total / firstAssignmentPage.pageSize);
+      for (let page = 2; page <= pageCount; page += 1) {
+        const nextPage = await canvasService.getAssignments({
+          include_concluded: includeConcluded,
+          page,
+          page_size: firstAssignmentPage.pageSize,
+        });
+        canvasAssignments.push(...nextPage.assignments);
+      }
+      if (canvasRequestGeneration.current !== generation) return false;
+      setCanvasConnection(connection);
+      setCanvasSyncReport(latest);
+      setCourses(canvasCourses);
+      setAssignments(canvasAssignments);
+      setSessions([]);
+      return true;
+    } catch (cause) {
+      if (canvasRequestGeneration.current !== generation) return false;
+      setCanvasError(
+        "Canvas data could not be refreshed. Previously loaded data was preserved; retry shortly.",
+      );
+      throw cause;
+    } finally {
+      if (canvasRequestGeneration.current === generation) setCanvasLoading(false);
+    }
+  }, [backendMode]);
 
   useEffect(() => {
     if (!backendMode || auth?.status === "loading") return;
@@ -158,6 +239,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setInsights([]);
         setNotifications([]);
         setCalendarConnection(null);
+        setCanvasConnection(null);
+        setCanvasSyncReport(null);
+        setCanvasError(null);
         setLoading(false);
       }, 0);
       return () => window.clearTimeout(timer);
@@ -166,9 +250,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     queueMicrotask(() => {
       if (!cancelled) setLoading(true);
     });
-    void bootstrapService
-      .get()
-      .then((bootstrap) => {
+    void (async () => {
+      try {
+        const bootstrap = await bootstrapService.get();
         if (cancelled) return;
         setCourses(bootstrap.courses);
         setAssignments(bootstrap.assignments);
@@ -178,13 +262,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSettings(bootstrap.settings);
         setNotifications(bootstrap.notifications);
         setThemeState(bootstrap.settings.profile.theme);
-      })
-      .catch(() => {
+        try {
+          await refreshCanvasWorkspace();
+        } catch {
+          if (!cancelled) {
+            showToast("Canvas could not be refreshed. Previously loaded data was preserved.");
+          }
+        }
+      } catch {
         if (!cancelled) showToast("Could not load your workspace. Please retry.");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     void calendarService
       .getStatus()
       .then((connection) => {
@@ -193,6 +283,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         if (!cancelled) setCalendarConnection(null);
       });
+
     void services.insights
       .get()
       .then((loadedInsights) => {
@@ -203,8 +294,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     return () => {
       cancelled = true;
+      canvasRequestGeneration.current += 1;
     };
-  }, [auth?.status, backendMode, showToast]);
+  }, [auth?.status, auth?.user?.id, backendMode, refreshCanvasWorkspace, showToast]);
 
   const setTheme = (value: ThemePreference) => {
     setThemeState(value);
@@ -356,6 +448,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loading,
     calendarConnection,
     refreshCalendarConnection,
+    canvasConnection,
+    canvasSyncReport,
+    canvasLoading,
+    canvasError,
+    refreshCanvasWorkspace,
     courses,
     assignments,
     sessions,

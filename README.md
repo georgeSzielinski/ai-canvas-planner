@@ -2,7 +2,7 @@
 
 Canvas Sweeper is an academic planning foundation that turns assignment deadlines into a realistic study plan. Canvai, its planning assistant, reasons about workload, rowing, school, commuting, meals, lifting, free time, and protected sleep.
 
-Phase 2 turns the Phase 1 foundation into an authenticated, multi-user application with Google Sign-In and a server-side Google Calendar connection. Canvas integration, assignment scheduling logic, and external AI remain intentionally out of scope.
+Phase 3 adds a secure, server-side Canvas connection and idempotent course, assignment, and submission synchronization to the authenticated Phase 2 foundation. Assignment scheduling logic and external AI remain intentionally out of scope.
 
 ## What is included
 
@@ -12,6 +12,7 @@ Phase 2 turns the Phase 1 foundation into an authenticated, multi-user applicati
 - FastAPI API with Pydantic schemas, SQLAlchemy models, Alembic migration, SQLite development persistence, deterministic seed, local-origin CORS, and versioned endpoints.
 - Google OpenID Connect, opaque server-side sessions, remember-login/logout, CSRF protection, first-login onboarding, user profiles, and protected frontend/API routes.
 - Separately consented Google Calendar OAuth with encrypted credentials, refresh, discovery/selection, minimal busy-time caching, study-calendar creation, and ownership-safe study-event publishing.
+- Environment-backed local Canvas verification, bounded/retried API reads, user-scoped normalized persistence, partial-safe synchronization, course controls, deterministic assignment categorization, and a real assignment workspace.
 - Vitest/Testing Library, Playwright, Pytest, ESLint, Prettier, Ruff, and mypy configuration.
 
 ## Prerequisites
@@ -26,7 +27,7 @@ Phase 2 turns the Phase 1 foundation into an authenticated, multi-user applicati
 make install
 cp frontend/.env.example frontend/.env.local
 cp backend/.env.example backend/.env
-# Configure Google OAuth and generate independent state/Fernet secrets; see docs below.
+# Configure Google OAuth/Calendar and optional local Canvas credentials; see docs below.
 make migrate
 # Optional for a disposable demo database only:
 make seed
@@ -78,6 +79,10 @@ cd frontend && npm run test:e2e
 - `POST /api/v1/calendar/sync-busy`, `GET/PATCH /api/v1/calendar/preferences`
 - `GET /api/v1/calendar/study-sessions/{session_id}/preview`
 - `POST /api/v1/calendar/study-sessions/{session_id}/publish`
+- `GET /api/v1/canvas/status`, `POST /api/v1/canvas/verify`, `POST /api/v1/canvas/sync`
+- `GET /api/v1/canvas/sync/latest`, `GET /api/v1/canvas/courses`
+- `PATCH /api/v1/canvas/courses/{course_id}`
+- `GET /api/v1/canvas/assignments`, `GET /api/v1/canvas/assignments/{assignment_id}`
 - `GET /api/v1/assignments`
 - `GET /api/v1/assignments/{assignment_id}`
 - `PATCH /api/v1/assignments/{assignment_id}`
@@ -98,11 +103,11 @@ docs/              Architecture, design system, completion notes, and roadmap
 scripts/           Reserved for cross-project automation
 ```
 
-See [architecture](docs/architecture.md), [database schema](docs/database-schema.md), [authentication flow](docs/authentication-flow.md), [Google Calendar setup](docs/google-calendar-integration.md), [environment variables](docs/environment-variables.md), [developer setup](docs/developer-setup.md), [Phase 2 completion](docs/phase-2-completion.md), and [roadmap](docs/roadmap.md).
+See [architecture](docs/architecture.md), [database schema](docs/database-schema.md), [authentication flow](docs/authentication-flow.md), [Google Calendar setup](docs/google-calendar-integration.md), [Canvas setup and renewal](docs/canvas-integration.md), [environment variables](docs/environment-variables.md), [developer setup](docs/developer-setup.md), [Phase 3 completion](docs/phase-3-completion.md), and [roadmap](docs/roadmap.md).
 
 ## Safety and known limitations
 
-SQLite files and all populated `.env` variants are ignored. Google credentials remain backend-only and encrypted at rest. The busy cache deliberately omits event content. The scheduler and Canvas connection are not implemented, so Phase 1 assignments and Canvai proposals remain deterministic fixtures. A real Google Cloud test project/account is required to validate live provider consent outside the automated fake-provider suite. Production deployment, background sync, PostgreSQL, managed key rotation, and privacy operations remain later reliability work.
+SQLite files and all populated `.env` variants are ignored. Google credentials remain backend-only and encrypted at rest. The local Canvas token remains environment-only and never enters API responses or browser bundles. The busy cache deliberately omits event content; Canvas assignment HTML is reduced to safe plain text. The scheduling engine is not implemented, and no Canvas data is sent to an AI provider. A real Google Cloud test project/account and institution-approved Canvas token are required for live-provider validation outside automated fake-provider suites. Canvas OAuth, production deployment, background sync, PostgreSQL, managed key rotation, and privacy operations remain later reliability work.
 
 Busy sync reports imported busy blocks, free-block counts, overlapping appointments, and short-gap travel conflicts. Event locations are used only in memory for travel-conflict detection and are never cached.
 

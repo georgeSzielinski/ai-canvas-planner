@@ -26,8 +26,8 @@ class AssignmentSchema(BaseModel):
     title: str
     description: str
     type: str
-    due_at: datetime
-    points: int
+    due_at: datetime | None
+    points: float
     grade_weight: float | None = None
     estimated_minutes: int
     actual_minutes: int | None = None

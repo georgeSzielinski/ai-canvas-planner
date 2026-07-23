@@ -25,14 +25,34 @@ test("landing opens the demo and all main pages navigate", async ({ page }) => {
   }
 });
 
-test("assignment filters, details, and status work", async ({ page }) => {
+test("Canvas assignment filters, details, and source status work", async ({ page }) => {
   await page.goto("/assignments");
   await page.getByRole("tab", { name: /All/ }).click();
-  await page.getByPlaceholder(/Search assignments/i).fill("Kinematics");
-  await page.getByRole("button", { name: /Kinematics unit test/i }).click();
-  await expect(page.locator("h2", { hasText: "Kinematics unit test" })).toBeVisible();
-  await page.getByRole("button", { name: "Mark complete" }).click();
-  await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
+  await page.getByPlaceholder(/Search assignments/i).fill("Field Lab");
+  await page.getByRole("button", { name: /Field Lab/i }).click();
+  await expect(page.locator("h2", { hasText: "Field Lab" })).toBeVisible();
+  await expect(page.getByText("No due date").first()).toBeVisible();
+  await expect(page.getByText("MISSING").first()).toBeVisible();
+  await expect(page.getByText("LATE").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Open in Canvas/i })).toHaveAttribute(
+    "href",
+    "https://sequoia.instructure.com/courses/71/assignments/99",
+  );
+  await expect(page.getByRole("button", { name: "Mark complete" })).toHaveCount(0);
+});
+
+test("Canvas connection verification and synchronization use mocked provider data", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  const canvas = page.getByTestId("canvas-integration");
+  await expect(canvas.getByText("Maya Canvas")).toBeVisible();
+  await expect(canvas.getByText("sequoia.instructure.com")).toBeVisible();
+  await expect(canvas.getByText("Biology")).toBeVisible();
+  await canvas.getByRole("button", { name: "Verify connection" }).click();
+  await expect(page.getByText("Canvas connection verified", { exact: true })).toBeVisible();
+  await canvas.getByRole("button", { name: "Sync now" }).click();
+  await expect(page.getByText(/Canvas sync imported 1 new assignment/i)).toBeVisible();
 });
 
 test("setting persists across reload", async ({ page }) => {

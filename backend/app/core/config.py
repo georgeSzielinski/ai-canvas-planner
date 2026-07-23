@@ -1,7 +1,8 @@
 from functools import lru_cache
+from urllib.parse import urlsplit, urlunsplit
 
 from cryptography.fernet import Fernet
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,8 +23,39 @@ class Settings(BaseSettings):
     credential_encryption_key: str = ""
     credential_encryption_key_version: int = 1
     credential_encryption_previous_keys: dict[int, str] = Field(default_factory=dict)
+    canvas_base_url: str = ""
+    canvas_access_token: SecretStr = Field(default_factory=lambda: SecretStr(""))
+    canvas_request_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
+    canvas_page_size: int = Field(default=100, ge=1, le=100)
+    canvas_max_response_bytes: int = Field(default=2_000_000, ge=1, le=50_000_000)
+    canvas_max_pages: int = Field(default=50, ge=1, le=500)
+    canvas_max_records: int = Field(default=10000, ge=1, le=100000)
+    canvas_retry_attempts: int = Field(default=3, ge=1, le=5)
+    canvas_sync_lookback_days: int = Field(default=180, ge=0, le=3650)
+    canvas_sync_lookahead_days: int = Field(default=365, ge=1, le=3650)
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="CANVAS_SWEEPER_", extra="ignore")
+
+    @field_validator("canvas_base_url")
+    @classmethod
+    def normalize_canvas_base_url(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            return ""
+        parsed = urlsplit(stripped)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("canvas_base_url must be a valid HTTP(S) origin")
+        if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise ValueError("canvas_base_url must use HTTPS except for loopback test fixtures")
+        path = parsed.path.rstrip("/")
+        return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -48,6 +80,12 @@ class Settings(BaseSettings):
                 raise ValueError(f"Previous credential key version {version} is invalid") from error
         if self.environment.lower() not in {"production", "staging"}:
             return self
+        if self.canvas_access_token.get_secret_value().strip():
+            raise ValueError(
+                "Environment Canvas credentials are development-only; use a per-user credential provider in production"
+            )
+        if self.canvas_base_url and not self.canvas_base_url.startswith("https://"):
+            raise ValueError("Production and staging Canvas URLs must use HTTPS")
         required = {
             "google_client_id": self.google_client_id,
             "google_client_secret": self.google_client_secret,

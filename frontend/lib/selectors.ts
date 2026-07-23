@@ -1,22 +1,35 @@
 import type { Assignment, StudySession, WeeklyWorkload } from "@/types/domain";
 import { DEMO_REFERENCE_DATE } from "@/lib/demo-date";
 
-const reference = new Date(DEMO_REFERENCE_DATE).getTime();
-
-export const selectOverdueAssignments = (items: Assignment[]) =>
-  items.filter(
-    (item) => item.completionState === "open" && new Date(item.dueAt).getTime() < reference,
+export const selectOverdueAssignments = (
+  items: Assignment[],
+  referenceDate = DEMO_REFERENCE_DATE,
+) => {
+  const reference = new Date(referenceDate).getTime();
+  return items.filter(
+    (item) =>
+      item.completionState === "open" &&
+      item.dueAt !== null &&
+      new Date(item.dueAt).getTime() < reference,
   );
+};
 
 export const selectMissingWork = (items: Assignment[]) => items.filter((item) => item.missing);
 
-export const selectUpcomingAssignments = (items: Assignment[], days = 7) =>
-  items.filter((item) => {
+export const selectUpcomingAssignments = (
+  items: Assignment[],
+  days = 7,
+  referenceDate = DEMO_REFERENCE_DATE,
+) => {
+  const reference = new Date(referenceDate).getTime();
+  return items.filter((item) => {
+    if (!item.dueAt) return false;
     const due = new Date(item.dueAt).getTime();
     return (
       item.completionState === "open" && due >= reference && due <= reference + days * 86_400_000
     );
   });
+};
 
 export const selectHighestPriority = (items: Assignment[]) =>
   items

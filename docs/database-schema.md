@@ -1,6 +1,6 @@
 # Database schema
 
-Alembic is the only schema-change mechanism. Phase 2 head is `20260721_0004`.
+Alembic is the only schema-change mechanism. Phase 3 head is `20260722_0005`.
 
 ## Existing Phase 1 tables
 
@@ -22,6 +22,16 @@ Alembic is the only schema-change mechanism. Phase 2 head is `20260721_0004`.
 ## User profile additions
 
 `google_id`, `email`, `profile_photo`, `onboarding_complete`, bedtime/wake time, rowing schedule, default study duration, preferred calendar, and calendar consent were added while preserving the Phase 1 profile fields and foreign-key root.
+
+## Phase 3 Canvas tables and columns
+
+- `canvas_connections`: one safe environment-provider connection state per application user: institution hostname, Canvas user identity, verification/sync status and timestamps, sanitized error code, and concluded-course preference. It has no credential column.
+- `canvas_sync_runs`: durable running/success/partial/failed/interrupted reports with bounded warning strings and aggregate counts. Stale running rows are marked interrupted after process restart.
+- `canvas_submission_states`: one user-scoped submission record per imported assignment, with Canvas workflow/submitted/graded state, score/grade, late/missing/excused flags, attempts, seconds late, and source update time.
+- `courses` gains user-scoped Canvas ID uniqueness, enrollment/workflow/term/lifecycle fields, selection, source timestamps, and non-destructive archived state.
+- `assignments` gains owning user/Canvas ID uniqueness, nullable due/unlock/lock times, safe description/link, decimal points, submission/group/grading fields, deterministic category/reason, source timestamps/hash, and archived/deleted markers.
+
+The environment Canvas token is intentionally absent from every table.
 
 ## Study event ownership
 

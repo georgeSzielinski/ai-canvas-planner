@@ -38,7 +38,7 @@ import { useApp } from "@/components/common/app-provider";
 import { useAuth } from "@/components/auth/auth-provider";
 
 import { courseToneClass } from "@/lib/course-style";
-import { demoLongDate, formatDemoDate } from "@/lib/demo-date";
+import { DEMO_REFERENCE_DATE, demoLongDate, formatDemoDate } from "@/lib/demo-date";
 import {
   selectHighestPriority,
   selectMissingWork,
@@ -141,11 +141,16 @@ export function OverviewPage() {
     return (
       <EmptyState
         title="Your workspace is ready"
-        body="No assignments are available yet. Canvas integration is not enabled in Phase 2."
+        body={
+          backendMode
+            ? "No Canvas assignments are available yet. Connect and synchronize Canvas in Settings."
+            : "No assignments are available in this demo workspace."
+        }
       />
     );
   }
-  const upcoming = selectUpcomingAssignments(assignments, 2);
+  const referenceDate = backendMode ? new Date().toISOString() : DEMO_REFERENCE_DATE;
+  const upcoming = selectUpcomingAssignments(assignments, 2, referenceDate);
   const highest = selectHighestPriority(assignments);
   const course = courses.find((item) => item.id === highest.courseId);
   if (!course) {
@@ -224,7 +229,10 @@ export function OverviewPage() {
           <h1>Good afternoon, {user?.display_name ?? settings.profile.displayName}.</h1>
           <p>
             <CalendarBlank style={{ verticalAlign: "-2px", marginRight: 5 }} />
-            {demoLongDate} · {backendMode ? "Private workspace" : "Demo workspace"} ·{" "}
+            {backendMode
+              ? new Intl.DateTimeFormat(undefined, { dateStyle: "full" }).format(new Date())
+              : demoLongDate}{" "}
+            · {backendMode ? "Private workspace" : "Demo workspace"} ·{" "}
             {backendMode
               ? calendarConnection?.connected
                 ? "Google Calendar connected"

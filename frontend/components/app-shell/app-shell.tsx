@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const {
     backendMode,
     calendarConnection,
+    canvasConnection,
     notifications,
     markAllNotificationsRead,
     dismissNotification,
@@ -72,6 +73,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const active = navItems.find((item) => pathname.startsWith(item.href)) ?? navItems[0];
   const unread = notifications.filter((item) => !item.read).length;
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
+  const canvasLabel = !backendMode
+    ? "Demo mode · synced 2m ago"
+    : canvasConnection?.connected
+      ? `Connected${canvasConnection.last_successful_sync_at ? " · synced" : ""}`
+      : canvasConnection?.configured
+        ? "Needs attention"
+        : "Not configured";
+  const canvasTone =
+    !backendMode || canvasConnection?.connected
+      ? "green"
+      : canvasConnection?.configured
+        ? "amber"
+        : "gray";
 
   return (
     <div className="app-frame">
@@ -126,9 +140,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <GraduationCap />
             <span>
               <strong>Canvas</strong>
-              <small>{backendMode ? "Integration not enabled" : "Demo mode · synced 2m ago"}</small>
+              <small>{canvasLabel}</small>
             </span>
-            <i className="dot amber" />
+            <i className={`dot ${canvasTone}`} />
           </div>
           <div className="connection-row">
             <CalendarDots />

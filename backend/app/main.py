@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.auth_routes import router as auth_router
 from app.api.calendar_routes import router as calendar_router
+from app.api.canvas_routes import router as canvas_router
 from app.api.routes import router
 from app.api.user_routes import router as user_router
 from app.core.config import get_settings
@@ -36,13 +37,20 @@ app = FastAPI(
 
 @app.exception_handler(HTTPException)
 async def http_error(_request: Request, error: HTTPException) -> JSONResponse:
-    message = str(error.detail)
+    if isinstance(error.detail, dict):
+        message = str(error.detail.get("message", "Request failed"))
+        code = str(error.detail.get("code", error_code(error.status_code)))
+        detail = message
+    else:
+        message = str(error.detail)
+        code = error_code(error.status_code)
+        detail = error.detail
     return JSONResponse(
         status_code=error.status_code,
         headers=error.headers,
         content={
-            "detail": error.detail,
-            "error": {"code": error_code(error.status_code), "message": message},
+            "detail": detail,
+            "error": {"code": code, "message": message},
         },
     )
 
@@ -69,3 +77,4 @@ app.include_router(router)
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(calendar_router)
+app.include_router(canvas_router)

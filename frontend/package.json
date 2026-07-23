@@ -2,6 +2,10 @@
   "name": "canvas-sweeper-frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -18,7 +22,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@phosphor-icons/react": "^2.1.10",
     "geist": "1.7.2",
-    "next": "16.2.10",
+    "next": "16.2.11",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.62.0",
@@ -35,7 +39,7 @@
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.1.0",
     "eslint": "^9.39.1",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.2.11",
     "jsdom": "^27.1.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
@@ -43,6 +47,7 @@
     "vitest": "^4.0.8"
   },
   "overrides": {
-    "postcss": "8.5.20"
+    "postcss": "8.5.20",
+    "sharp": "0.35.3"
   }
 }

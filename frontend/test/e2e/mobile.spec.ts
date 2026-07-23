@@ -15,3 +15,22 @@ test("mobile navigation keeps primary pages reachable", async ({ page }) => {
   await page.getByRole("link", { name: "Canvai" }).first().click();
   await expect(page).toHaveURL(/\/canvai$/);
 });
+
+test("Canvas assignment and settings views remain usable on mobile", async ({ page }) => {
+  await page.goto("/assignments");
+  await expect(page.getByRole("heading", { name: "Assignments", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: /No due date/ }).click();
+  await page.getByRole("button", { name: /Field Lab/i }).click();
+  await expect(page.getByText("Field Lab", { exact: true }).last()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open in Canvas" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+
+  await page.goto("/settings");
+  await expect(page.getByRole("button", { name: "Verify connection" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Sync Biology" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});

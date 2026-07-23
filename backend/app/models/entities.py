@@ -7,10 +7,12 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,24 +86,73 @@ class OAuthState(TimestampMixin, Base):
 
 class Course(TimestampMixin, Base):
     __tablename__ = "courses"
+    __table_args__ = (
+        UniqueConstraint("user_id", "canvas_course_id", name="uq_courses_user_canvas"),
+    )
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("user_profiles.id"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     short_name: Mapped[str] = mapped_column(String(40))
     color: Mapped[str] = mapped_column(String(32))
+    canvas_course_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    course_code: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    enrollment_state: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    workflow_state: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    term_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    term_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    concluded: Mapped[bool] = mapped_column(Boolean, default=False)
+    favorite: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    selected_for_sync: Mapped[bool] = mapped_column(Boolean, default=True)
+    source_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
     assignments: Mapped[list["Assignment"]] = relationship(back_populates="course")
 
 
 class Assignment(TimestampMixin, Base):
     __tablename__ = "assignments"
+    __table_args__ = (
+        UniqueConstraint("user_id", "canvas_assignment_id", name="uq_assignments_user_canvas"),
+    )
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"), index=True)
+    user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("user_profiles.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    canvas_assignment_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(240))
     description: Mapped[str] = mapped_column(Text)
     assignment_type: Mapped[str] = mapped_column(String(32))
-    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    points: Mapped[int] = mapped_column(Integer, default=0)
+    category_reason: Mapped[str] = mapped_column(String(500), default="")
+    due_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), index=True, nullable=True
+    )
+    unlock_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lock_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    points: Mapped[float] = mapped_column(Float, default=0)
     grade_weight: Mapped[float | None] = mapped_column(Float, nullable=True)
+    submission_types: Mapped[list[str]] = mapped_column(JSON, default=list)
+    assignment_group: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    grading_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    published: Mapped[bool] = mapped_column(Boolean, default=True)
+    omitted_from_final_grade: Mapped[bool] = mapped_column(Boolean, default=False)
+    peer_reviews: Mapped[bool] = mapped_column(Boolean, default=False)
+    canvas_created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    canvas_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    source_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     estimated_minutes: Mapped[int] = mapped_column(Integer)
     actual_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     priority: Mapped[str] = mapped_column(String(16))
@@ -115,9 +166,93 @@ class Assignment(TimestampMixin, Base):
     suggested_steps: Mapped[list[str]] = mapped_column(JSON, default=list)
     canvas_url: Mapped[str] = mapped_column(String(500))
     course: Mapped[Course] = relationship(back_populates="assignments")
+    canvas_submission: Mapped["CanvasSubmissionState | None"] = relationship(
+        back_populates="assignment", cascade="all, delete-orphan", uselist=False
+    )
     sessions: Mapped[list["StudySession"]] = relationship(
         back_populates="assignment", cascade="all, delete-orphan"
     )
+
+
+class CanvasConnection(TimestampMixin, Base):
+    __tablename__ = "canvas_connections"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("user_profiles.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    hostname: Mapped[str] = mapped_column(String(255))
+    canvas_user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    canvas_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(64), default="not_verified")
+    last_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_successful_sync_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_attempted_sync_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_sync_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    sync_cursor: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    include_concluded_courses: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class CanvasSyncRun(TimestampMixin, Base):
+    __tablename__ = "canvas_sync_runs"
+    __table_args__ = (
+        Index(
+            "uq_canvas_sync_runs_user_running",
+            "user_id",
+            unique=True,
+            sqlite_where=text("status = 'running'"),
+            postgresql_where=text("status = 'running'"),
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("user_profiles.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    courses_checked: Mapped[int] = mapped_column(Integer, default=0)
+    courses_imported: Mapped[int] = mapped_column(Integer, default=0)
+    assignments_created: Mapped[int] = mapped_column(Integer, default=0)
+    assignments_updated: Mapped[int] = mapped_column(Integer, default=0)
+    assignments_unchanged: Mapped[int] = mapped_column(Integer, default=0)
+    assignments_archived: Mapped[int] = mapped_column(Integer, default=0)
+    submission_states_updated: Mapped[int] = mapped_column(Integer, default=0)
+    course_failures: Mapped[int] = mapped_column(Integer, default=0)
+    warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class CanvasSubmissionState(TimestampMixin, Base):
+    __tablename__ = "canvas_submission_states"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("user_profiles.id", ondelete="CASCADE"), index=True
+    )
+    assignment_id: Mapped[str] = mapped_column(
+        ForeignKey("assignments.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    workflow_state: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    submitted: Mapped[bool] = mapped_column(Boolean, default=False)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    graded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    grade: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    late: Mapped[bool] = mapped_column(Boolean, default=False)
+    missing: Mapped[bool] = mapped_column(Boolean, default=False)
+    excused: Mapped[bool] = mapped_column(Boolean, default=False)
+    attempt_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    seconds_late: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_source_update_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    assignment: Mapped[Assignment] = relationship(back_populates="canvas_submission")
 
 
 class StudySession(TimestampMixin, Base):

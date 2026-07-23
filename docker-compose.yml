@@ -1,4 +1,11 @@
+## Local-development stack. Production deployments run migrations as a separate release job.
 services:
+  backend-volume-init:
+    build: ./backend
+    user: "0:0"
+    command: ["sh", "-c", "chown -R app:app /data"]
+    volumes:
+      - canvas-sweeper-data:/data
   frontend:
     build:
       context: ./frontend
@@ -9,11 +16,19 @@ services:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
       NEXT_PUBLIC_DATA_MODE: backend
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
   backend:
     build: ./backend
+    depends_on:
+      backend-volume-init:
+        condition: service_completed_successfully
+    # Local development convenience only. Production runs migrations as a
+    # separate release job before starting the reusable application image.
+    command: >-
+      sh -c "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"
     environment:
       CANVAS_SWEEPER_DATABASE_URL: sqlite:////data/canvas_sweeper.db
       CANVAS_SWEEPER_CORS_ORIGINS: http://localhost:3000
@@ -22,10 +37,32 @@ services:
       CANVAS_SWEEPER_GOOGLE_CLIENT_SECRET: ${CANVAS_SWEEPER_GOOGLE_CLIENT_SECRET:-}
       CANVAS_SWEEPER_OAUTH_STATE_SECRET: ${CANVAS_SWEEPER_OAUTH_STATE_SECRET:-}
       CANVAS_SWEEPER_CREDENTIAL_ENCRYPTION_KEY: ${CANVAS_SWEEPER_CREDENTIAL_ENCRYPTION_KEY:-}
+      CANVAS_SWEEPER_CANVAS_BASE_URL: ${CANVAS_SWEEPER_CANVAS_BASE_URL:-}
+      CANVAS_SWEEPER_CANVAS_ACCESS_TOKEN: ${CANVAS_SWEEPER_CANVAS_ACCESS_TOKEN:-}
+      CANVAS_SWEEPER_CANVAS_REQUEST_TIMEOUT_SECONDS: ${CANVAS_SWEEPER_CANVAS_REQUEST_TIMEOUT_SECONDS:-15}
+      CANVAS_SWEEPER_CANVAS_PAGE_SIZE: ${CANVAS_SWEEPER_CANVAS_PAGE_SIZE:-100}
+      CANVAS_SWEEPER_CANVAS_MAX_RESPONSE_BYTES: ${CANVAS_SWEEPER_CANVAS_MAX_RESPONSE_BYTES:-2000000}
+      CANVAS_SWEEPER_CANVAS_MAX_PAGES: ${CANVAS_SWEEPER_CANVAS_MAX_PAGES:-50}
+      CANVAS_SWEEPER_CANVAS_MAX_RECORDS: ${CANVAS_SWEEPER_CANVAS_MAX_RECORDS:-10000}
+      CANVAS_SWEEPER_CANVAS_RETRY_ATTEMPTS: ${CANVAS_SWEEPER_CANVAS_RETRY_ATTEMPTS:-3}
+      CANVAS_SWEEPER_CANVAS_SYNC_LOOKBACK_DAYS: ${CANVAS_SWEEPER_CANVAS_SYNC_LOOKBACK_DAYS:-30}
+      CANVAS_SWEEPER_CANVAS_SYNC_LOOKAHEAD_DAYS: ${CANVAS_SWEEPER_CANVAS_SYNC_LOOKAHEAD_DAYS:-365}
     volumes:
       - canvas-sweeper-data:/data
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 5
 
 volumes:
   canvas-sweeper-data:

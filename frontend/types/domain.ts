@@ -1,6 +1,17 @@
 export type ThemePreference = "light" | "dark" | "system";
 export type Priority = "urgent" | "high" | "medium" | "low";
-export type AssignmentType = "essay" | "homework" | "test" | "presentation" | "reading" | "project";
+export type AssignmentType =
+  | "test"
+  | "quiz"
+  | "essay"
+  | "project"
+  | "reading"
+  | "discussion"
+  | "worksheet"
+  | "presentation"
+  | "lab"
+  | "homework"
+  | "other";
 export type CompletionState = "open" | "completed";
 export type SubmissionStatus = "not_started" | "in_progress" | "submitted" | "graded";
 
@@ -9,6 +20,14 @@ export interface Course {
   name: string;
   shortName: string;
   color: string;
+  canvasCourseId?: string;
+  courseCode?: string;
+  enrollmentState?: string;
+  termName?: string;
+  concluded?: boolean;
+  selectedForSync?: boolean;
+  archived?: boolean;
+  assignmentCount?: number;
 }
 
 export interface AssignmentAnalysis {
@@ -35,7 +54,7 @@ export interface Assignment {
   title: string;
   description: string;
   type: AssignmentType;
-  dueAt: string;
+  dueAt: string | null;
   points: number;
   gradeWeight?: number;
   estimatedMinutes: number;
@@ -47,6 +66,18 @@ export interface Assignment {
   scheduledSessionIds: string[];
   analysis: AssignmentAnalysis;
   canvasUrl: string;
+  categoryReason?: string;
+  late?: boolean;
+  excused?: boolean;
+  locked?: boolean;
+  published?: boolean;
+  concludedCourse?: boolean;
+  workflowState?: string;
+  submittedAt?: string;
+  gradedAt?: string;
+  score?: number;
+  grade?: string;
+  source?: "canvas" | "demo" | "manual";
 }
 
 export interface RoutineBlock {

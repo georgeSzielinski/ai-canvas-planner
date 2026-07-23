@@ -31,6 +31,98 @@ const user = {
   updated_at: "2026-07-21T00:00:00Z",
 };
 
+const canvasConnection = {
+  connected: true,
+  configured: true,
+  status: "connected",
+  canvas_display_name: "Maya Canvas",
+  canvas_user_id: "42",
+  hostname: "sequoia.instructure.com",
+  last_verified_at: "2026-07-22T16:00:00Z",
+  last_successful_sync_at: "2026-07-22T16:01:00Z",
+  last_attempted_sync_at: "2026-07-22T16:01:00Z",
+  last_sync_status: "success",
+  last_error_code: null,
+  include_concluded_courses: false,
+  data_stale: false,
+};
+
+const canvasCourse = {
+  id: "canvas-course-e2e",
+  canvas_course_id: "71",
+  name: "Biology",
+  course_code: "BIO",
+  enrollment_state: "active",
+  workflow_state: "available",
+  term_name: "Summer",
+  start_at: null,
+  end_at: null,
+  concluded: false,
+  favorite: true,
+  selected_for_sync: true,
+  archived: false,
+  assignment_count: 1,
+  last_seen_at: "2026-07-22T16:01:00Z",
+};
+
+const canvasAssignment = {
+  id: "canvas-assignment-e2e",
+  canvas_assignment_id: "99",
+  course_id: canvasCourse.id,
+  course_name: canvasCourse.name,
+  title: "Field Lab",
+  description: "Observe and report.",
+  category: "lab",
+  category_reason: "Matched lab in the assignment title.",
+  canvas_url: "https://sequoia.instructure.com/courses/71/assignments/99",
+  due_at: null,
+  unlock_at: null,
+  lock_at: null,
+  points_possible: 12.5,
+  submission_types: ["online_upload"],
+  assignment_group: "4",
+  grading_type: "points",
+  published: true,
+  omitted_from_final_grade: false,
+  peer_reviews: false,
+  workflow_state: "unsubmitted",
+  submission_status: "not_started",
+  submitted_at: null,
+  graded_at: null,
+  score: null,
+  grade: null,
+  late: true,
+  missing: true,
+  excused: false,
+  attempt_count: 0,
+  seconds_late: 30,
+  completed: false,
+  locked: false,
+  archived: false,
+  concluded_course: false,
+  canvas_created_at: "2026-07-01T00:00:00Z",
+  canvas_updated_at: "2026-07-22T00:00:00Z",
+  first_seen_at: "2026-07-22T16:01:00Z",
+  last_seen_at: "2026-07-22T16:01:00Z",
+};
+
+const canvasSyncReport = {
+  id: "canvas-sync-e2e",
+  status: "success",
+  courses_checked: 1,
+  courses_imported: 1,
+  assignments_created: 1,
+  assignments_updated: 0,
+  assignments_unchanged: 0,
+  assignments_archived: 0,
+  submission_states_updated: 1,
+  course_failures: 0,
+  warnings: [],
+  started_at: "2026-07-22T16:00:00Z",
+  completed_at: "2026-07-22T16:01:00Z",
+  error_code: null,
+};
+
 function settingsWire(settings = defaultSettings) {
   return settingsToWire(settings) as Record<string, unknown>;
 }
@@ -163,6 +255,41 @@ export async function installAuthenticatedSession(page: Page) {
           last_error: null,
           reauthentication_required: false,
         },
+      });
+      return;
+    }
+    if (path === "/api/v1/canvas/status") {
+      await route.fulfill({ json: canvasConnection });
+      return;
+    }
+    if (path === "/api/v1/canvas/verify" && method === "POST") {
+      await route.fulfill({ json: canvasConnection });
+      return;
+    }
+    if (path === "/api/v1/canvas/sync" && method === "POST") {
+      await route.fulfill({ json: canvasSyncReport });
+      return;
+    }
+    if (path === "/api/v1/canvas/sync/latest") {
+      await route.fulfill({ json: canvasSyncReport });
+      return;
+    }
+    if (path === "/api/v1/canvas/courses") {
+      await route.fulfill({ json: [canvasCourse] });
+      return;
+    }
+    if (path === `/api/v1/canvas/courses/${canvasCourse.id}` && method === "PATCH") {
+      await route.fulfill({
+        json: {
+          ...canvasCourse,
+          selected_for_sync: request.postDataJSON().selected_for_sync,
+        },
+      });
+      return;
+    }
+    if (path === "/api/v1/canvas/assignments") {
+      await route.fulfill({
+        json: { items: [canvasAssignment], page: 1, page_size: 100, total: 1 },
       });
       return;
     }

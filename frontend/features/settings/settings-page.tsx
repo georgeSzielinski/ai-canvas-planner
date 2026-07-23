@@ -16,6 +16,7 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { useApp } from "@/components/common/app-provider";
+import { CanvasIntegrationPanel } from "@/components/canvas/canvas-integration-panel";
 import { useOptionalAuth } from "@/components/auth/auth-provider";
 import { Badge, Button, Card, LoadingState, Modal, SectionHeader } from "@/components/common/ui";
 import { defaultSettings } from "@/lib/demo-data";
@@ -444,20 +445,7 @@ export function SettingsPage() {
             <SectionHeader title="Connected accounts" eyebrow="Account access" />
             <div className="settings-section-body">
               <div className="connection-settings">
-                <div className="connection-setting">
-                  <span>
-                    <GraduationCap />
-                  </span>
-                  <div>
-                    <strong>Canvas</strong>
-                    <p>
-                      {backendMode
-                        ? "Integration not enabled"
-                        : "Demo data · last sync 2 minutes ago"}
-                    </p>
-                  </div>
-                  <Badge tone="warning">{backendMode ? "Not connected" : "Demo mode"}</Badge>
-                </div>
+                <CanvasIntegrationPanel />
                 <div className="connection-setting" data-testid="google-calendar-connection">
                   <span>
                     <CalendarDots />

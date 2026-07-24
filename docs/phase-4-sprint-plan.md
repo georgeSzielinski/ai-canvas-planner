@@ -26,6 +26,19 @@ Status: implemented; milestone validation passed pending commit.
 
 Validation: frontend 55 tests passed; backend 104 tests passed; ESLint, TypeScript, Ruff, mypy, and Next.js production build passed.
 
+### Pre-Sprint 1 — Calendar/timezone integrity hardening
+
+Status: validated; milestone commit pending.
+
+- Normalize offset-aware Google busy-event timestamps to UTC before persistence so SQLite reloads preserve the provider instant.
+- Keep the settings profile and canonical authenticated user profile synchronized atomically.
+- Validate settings timezones as IANA identifiers before either profile source is updated.
+- Re-audit existing publication behavior: the service fetches the remote event and verifies its private ownership marker, rename policy, and ETag before reporting an unchanged publication.
+
+Regression evidence: the UTC persistence test failed with `16:30` instead of `23:30` before the fix and passed afterward; profile synchronization and invalid-timezone tests likewise failed before their fixes and passed afterward.
+
+Validation: frontend 55 tests passed; backend 106 tests passed; ESLint, TypeScript, Ruff, mypy, targeted Calendar/API tests, and the Next.js production build passed.
+
 ### Sprint 1 — Scheduling data model and authenticated CRUD
 
 Status: next.

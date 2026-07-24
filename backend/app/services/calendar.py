@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.datetime_utils import as_utc as aware_utc
-from app.core.datetime_utils import utcnow
+from app.core.datetime_utils import provider_datetime_utc, utcnow
 from app.models import (
     Assignment,
     BusyEventCache,
@@ -414,8 +414,8 @@ def sync_busy_events(
                     connection_id=connection.id,
                     calendar_id=calendar_id,
                     provider_event_id=str(event["id"]),
-                    starts_at=start,
-                    ends_at=end,
+                    starts_at=provider_datetime_utc(start),
+                    ends_at=provider_datetime_utc(end),
                     all_day=all_day,
                     recurring_event_id=event.get("recurringEventId"),
                     status=str(event.get("status", "confirmed")),

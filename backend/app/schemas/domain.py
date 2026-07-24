@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.schemas.phase2 import validate_timezone
 
 
 class CourseSchema(BaseModel):
@@ -85,6 +87,8 @@ class UserProfileSchema(BaseModel):
     school_year: str
     week_start: Literal["monday", "sunday"]
     theme: Literal["light", "dark", "system"]
+
+    _timezone_is_valid = field_validator("time_zone")(validate_timezone)
 
 
 class StudyPreferencesSchema(BaseModel):

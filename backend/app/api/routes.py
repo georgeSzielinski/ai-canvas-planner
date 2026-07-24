@@ -88,6 +88,11 @@ def settings_update(
     if not settings:
         raise HTTPException(status_code=404, detail="Settings not found")
     settings.payload = payload.model_dump(mode="json")
+    grant.user.display_name = payload.profile.display_name
+    grant.user.time_zone = payload.profile.time_zone
+    grant.user.school_year = payload.profile.school_year
+    grant.user.week_start = payload.profile.week_start
+    grant.user.theme = payload.profile.theme
     database.commit()
     return payload
 

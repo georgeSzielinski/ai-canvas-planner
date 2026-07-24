@@ -66,16 +66,35 @@ def test_assignment_validation_error(client: TestClient) -> None:
 def test_settings_read_and_update(client: TestClient) -> None:
     settings = client.get("/api/v1/settings").json()
     settings["profile"]["display_name"] = "Maya Updated"
+    settings["profile"]["time_zone"] = "America/New_York"
+    settings["profile"]["school_year"] = "Senior"
+    settings["profile"]["week_start"] = "sunday"
+    settings["profile"]["theme"] = "dark"
     response = client.patch("/api/v1/settings", json=settings)
     assert response.status_code == 200
     assert response.json()["profile"]["display_name"] == "Maya Updated"
     assert client.get("/api/v1/settings").json()["profile"]["display_name"] == "Maya Updated"
+    profile = client.get("/api/v1/user/profile").json()
+    assert profile["display_name"] == "Maya Updated"
+    assert profile["timezone"] == "America/New_York"
+    assert profile["school_year"] == "Senior"
+    assert profile["week_starts_on"] == "sunday"
+    assert profile["preferred_theme"] == "dark"
 
 
 def test_settings_validation_error(client: TestClient) -> None:
     settings = client.get("/api/v1/settings").json()
     settings["profile"]["display_name"] = ""
     response = client.patch("/api/v1/settings", json=settings)
+    assert response.status_code == 422
+
+
+def test_settings_reject_invalid_profile_timezone(client: TestClient) -> None:
+    settings = client.get("/api/v1/settings").json()
+    settings["profile"]["time_zone"] = "Not/A-Timezone"
+
+    response = client.patch("/api/v1/settings", json=settings)
+
     assert response.status_code == 422
 
 

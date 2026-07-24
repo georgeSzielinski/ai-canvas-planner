@@ -384,6 +384,40 @@ def test_calendar_connection_discovery_selection_sync_and_publish(client: TestCl
     assert "not owned" in refused.json()["detail"]
 
 
+def test_busy_sync_persists_provider_instants_in_utc(client: TestClient) -> None:
+    provider = FakeGoogleProvider()
+    connect(client, provider)
+    assert (
+        client.patch(
+            "/api/v1/calendar/preferences",
+            json={"busy_calendar_ids": ["primary"]},
+        ).status_code
+        == 200
+    )
+
+    response = client.post(
+        "/api/v1/calendar/sync-busy",
+        json={
+            "time_min": "2026-09-16T00:00:00Z",
+            "time_max": "2026-09-24T00:00:00Z",
+        },
+    )
+
+    assert response.status_code == 200
+    session_dependency = app.dependency_overrides[get_db]
+    session_generator = session_dependency()
+    database = next(session_generator)
+    event = database.scalar(
+        select(BusyEventCache).where(
+            BusyEventCache.provider_event_id == "recurring-instance"
+        )
+    )
+    assert event is not None
+    assert event.starts_at == datetime(2026, 9, 17, 23, 30)
+    assert event.ends_at == datetime(2026, 9, 18, 2, 0)
+    session_generator.close()
+
+
 def test_disconnect_and_revoke(client: TestClient) -> None:
     provider = FakeGoogleProvider()
     connect(client, provider)

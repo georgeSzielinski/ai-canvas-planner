@@ -37,7 +37,6 @@ All backend variables use the `CANVAS_SWEEPER_` prefix. Copy examples to ignored
 | Variable | Purpose |
 |---|---|
 | `NEXT_PUBLIC_API_BASE_URL` | Browser-visible versioned API base. Contains no secret. |
-| `NEXT_PUBLIC_DATA_MODE` | Use `backend` for the authenticated Phase 2 application. |
 
 Only `NEXT_PUBLIC_` values enter the browser bundle. No OAuth secret, Canvas token, API token, state secret, encryption key, or credential JSON may use that prefix. Native backend startup reads ignored `backend/.env`; Docker Compose reads the ignored root `.env` and passes Canvas values only to the backend service.
 

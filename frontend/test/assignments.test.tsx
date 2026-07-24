@@ -1,9 +1,30 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AppProvider } from "@/components/common/app-provider";
-import { ToastRegion } from "@/components/common/ui";
+import { expect, vi } from "vitest";
 import { AssignmentsPage, filterAssignments } from "@/features/assignments/assignments-page";
-import { assignments, courses } from "@/lib/demo-data";
+import { assignments, courses, studySessions } from "@/test/fixtures/demo-data";
+
+const { updateAssignment } = vi.hoisted(() => ({ updateAssignment: vi.fn() }));
+
+vi.mock("@/components/common/app-provider", () => ({
+  useApp: () => ({
+    backendMode: true,
+    calendarConnection: null,
+    canvasConnection: { connected: true },
+    canvasSyncReport: null,
+    canvasLoading: false,
+    canvasError: null,
+    refreshCanvasWorkspace: vi.fn(),
+    courses,
+    loading: false,
+    assignments,
+    sessions: studySessions,
+    updateAssignment,
+    addSession: vi.fn(),
+    removeSession: vi.fn(),
+    showToast: vi.fn(),
+  }),
+}));
 
 const noFilters = {
   course: "",
@@ -31,12 +52,7 @@ describe("assignments", () => {
 
   it("searches assignments in the UI", async () => {
     const user = userEvent.setup();
-    render(
-      <AppProvider>
-        <AssignmentsPage />
-        <ToastRegion />
-      </AppProvider>,
-    );
+    render(<AssignmentsPage />);
     await user.click(screen.getByRole("tab", { name: /All/ }));
     await user.type(screen.getByPlaceholderText(/Search assignments/i), "Gatsby");
     expect(
@@ -45,17 +61,15 @@ describe("assignments", () => {
     expect(screen.queryByRole("button", { name: /Kinematics unit test/i })).not.toBeInTheDocument();
   });
 
-  it("changes assignment completion state", async () => {
+  it("requests an authenticated assignment completion update", async () => {
     const user = userEvent.setup();
-    render(
-      <AppProvider>
-        <AssignmentsPage />
-        <ToastRegion />
-      </AppProvider>,
-    );
+    render(<AssignmentsPage />);
     const details = screen.getByRole("heading", { name: "Assignment details" }).closest("section")!;
     await user.click(within(details).getByRole("button", { name: "Mark complete" }));
-    expect(within(details).getByRole("button", { name: "Reopen" })).toBeInTheDocument();
-    expect(screen.getByText("Assignment marked complete")).toBeInTheDocument();
+    expect(updateAssignment).toHaveBeenCalledWith(expect.any(String), {
+      completionState: "completed",
+      missing: false,
+      submissionStatus: "submitted",
+    });
   });
 });

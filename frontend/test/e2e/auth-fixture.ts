@@ -8,7 +8,7 @@ import {
   routineBlocks,
   studySessions,
   weeklyWorkload,
-} from "@/lib/demo-data";
+} from "@/test/fixtures/demo-data";
 import { settingsToWire } from "@/services/settings-service";
 
 const user = {

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { useEffect } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { AppProvider, useApp } from "@/components/common/app-provider";
-import { assignments as demoAssignments, defaultSettings } from "@/lib/demo-data";
+import { assignments as demoAssignments, defaultSettings } from "@/test/fixtures/demo-data";
 
 const mocks = vi.hoisted(() => ({
   getAssignments: vi.fn(),

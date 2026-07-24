@@ -1,4 +1,3 @@
-import { defaultSettings } from "@/lib/demo-data";
 import type { AppSettings } from "@/types/domain";
 import { apiClient } from "./api-client";
 
@@ -29,15 +28,6 @@ export interface SettingsService {
   get(): Promise<AppSettings>;
   update(settings: AppSettings): Promise<AppSettings>;
 }
-
-export const demoSettingsService: SettingsService = {
-  async get() {
-    return structuredClone(defaultSettings);
-  },
-  async update(settings) {
-    return structuredClone(settings);
-  },
-};
 
 export const backendSettingsService: SettingsService = {
   get: async () => settingsFromWire<AppSettings>(await apiClient.request<unknown>("/settings")),

@@ -9,7 +9,6 @@ export default defineConfig({
     command: "npm run dev -- --hostname 127.0.0.1",
     url: "http://127.0.0.1:3000",
     env: {
-      NEXT_PUBLIC_DATA_MODE: "backend",
       NEXT_PUBLIC_API_BASE_URL: "http://api.example.test/api/v1",
     },
     reuseExistingServer: true,

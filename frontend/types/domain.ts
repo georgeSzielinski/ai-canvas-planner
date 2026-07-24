@@ -77,7 +77,7 @@ export interface Assignment {
   gradedAt?: string;
   score?: number;
   grade?: string;
-  source?: "canvas" | "demo" | "manual";
+  source?: "canvas" | "manual";
 }
 
 export interface RoutineBlock {
@@ -100,7 +100,7 @@ export interface RoutineBlock {
 }
 
 export interface ConnectionStatus {
-  status: "demo" | "connected" | "not_connected" | "error";
+  status: "connected" | "not_connected" | "error";
   lastSync?: string;
   permissions: string[];
 }
@@ -262,17 +262,4 @@ export interface InsightMetric {
   change: string;
   explanation: string;
   adjustment: string;
-}
-
-export interface DemoBootstrap {
-  referenceDate: string;
-  courses: Course[];
-  assignments: Assignment[];
-  sessions: StudySession[];
-  routine: RoutineBlock[];
-  notifications: Notification[];
-  workload: WeeklyWorkload[];
-  settings: AppSettings;
-  canvasConnection: CanvasConnection;
-  calendarConnection: CalendarConnection;
 }

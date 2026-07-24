@@ -8,7 +8,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
-from app.db.seed import seed_database
 from app.models import Assignment, CanvasConnection, CanvasSubmissionState, CanvasSyncRun, Course
 from app.services.canvas_client import (
     CanvasAssignmentPayload,
@@ -17,6 +16,7 @@ from app.services.canvas_client import (
     CanvasProviderError,
 )
 from app.services.canvas_sync import CanvasSyncInProgress, synchronize_canvas
+from tests.fixtures.database_seed import seed_database
 
 
 class FakeCanvasClient:

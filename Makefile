@@ -1,4 +1,4 @@
-.PHONY: dev frontend backend install test test-e2e lint format format-check build build-images migrate seed compose-check audit check
+.PHONY: dev frontend backend install test test-e2e lint format format-check build build-images migrate compose-check audit check
 
 install:
 	cd frontend && npm ci
@@ -50,6 +50,3 @@ check: format-check lint test build compose-check audit
 
 migrate:
 	cd backend && .venv/bin/alembic upgrade head
-
-seed:
-	cd backend && .venv/bin/python -m app.db.seed

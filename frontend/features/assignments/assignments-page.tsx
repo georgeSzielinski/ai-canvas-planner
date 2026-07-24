@@ -21,12 +21,12 @@ import { Badge, Button, Card, EmptyState, Modal, SectionHeader } from "@/compone
 
 import { calendarService } from "@/services/calendar-service";
 import { courseToneClass } from "@/lib/course-style";
-import { DEMO_REFERENCE_DATE, formatDemoDate } from "@/lib/demo-date";
+import { formatDate } from "@/lib/date";
 import type { Assignment, Course, Priority, StudySession } from "@/types/domain";
 
 function assignmentDate(value: string | null, backendMode: boolean): string {
   if (!value) return "No due date";
-  if (!backendMode) return formatDemoDate(value);
+  if (!backendMode) return formatDate(value);
   return new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     month: "short",
@@ -60,7 +60,7 @@ export function filterAssignments(
   query: string,
   tab: Tab,
   filters: Record<string, string>,
-  referenceDate = DEMO_REFERENCE_DATE,
+  referenceDate = new Date().toISOString(),
 ) {
   const now = new Date(referenceDate).getTime();
   return items.filter((item) => {
@@ -142,7 +142,7 @@ export function AssignmentsPage({ initialAssignmentId = "" }: { initialAssignmen
   const [estimate, setEstimate] = useState(45);
   const [mobileDetail, setMobileDetail] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const referenceDate = backendMode ? new Date().toISOString() : DEMO_REFERENCE_DATE;
+  const referenceDate = new Date().toISOString();
 
   const filtered = useMemo(() => {
     const result = filterAssignments(assignments, courses, query, tab, filters, referenceDate);
@@ -671,7 +671,7 @@ export function AssignmentsPage({ initialAssignmentId = "" }: { initialAssignmen
                             <span>
                               <strong>{session.title}</strong>
                               <small>
-                                {formatDemoDate(session.startAt)} · {session.durationMinutes} min
+                                {formatDate(session.startAt)} · {session.durationMinutes} min
                               </small>
                             </span>
                             {backendMode && calendarConnection?.connected && (
@@ -773,7 +773,7 @@ export function AssignmentsPage({ initialAssignmentId = "" }: { initialAssignmen
         open={estimateOpen}
         onClose={() => setEstimateOpen(false)}
         title="Edit time estimate"
-        description="Canvai will use the new estimate in future demo proposals."
+        description="The deterministic planner will use this estimate in future schedule drafts."
       >
         <label className="field">
           <span>Estimated minutes</span>

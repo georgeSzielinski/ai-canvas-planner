@@ -13,14 +13,9 @@ def test_ready(client: TestClient) -> None:
     assert response.json()["database"] == "available"
 
 
-def test_demo_bootstrap(client: TestClient) -> None:
+def test_demo_bootstrap_is_not_available(client: TestClient) -> None:
     response = client.get("/api/v1/demo/bootstrap")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["reference_date"].startswith("2026-09-16")
-    assert len(payload["courses"]) == 6
-    assert len(payload["assignments"]) == 7
-    assert payload["settings"]["profile"]["display_name"] == "Maya Kessler"
+    assert response.status_code == 404
 
 
 def test_authenticated_workspace_bootstrap_excludes_demo_state(client: TestClient) -> None:
@@ -84,23 +79,14 @@ def test_settings_validation_error(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_insights(client: TestClient) -> None:
-    response = client.get("/api/v1/insights")
-    assert response.status_code == 200
-    assert len(response.json()) == 4
-
-
-def test_canvai_deterministic_proposal(client: TestClient) -> None:
-    first = client.post("/api/v1/canvai/proposals", json={"command": "Protect sleep"})
-    second = client.post("/api/v1/canvai/proposals", json={"command": "Protect sleep"})
-    assert first.status_code == 200
-    assert first.json() == second.json()
-    assert first.json()["changes"][0]["kind"] == "protect"
-
-
-def test_canvai_validation_error(client: TestClient) -> None:
-    response = client.post("/api/v1/canvai/proposals", json={"command": "x"})
-    assert response.status_code == 422
+def test_obsolete_placeholder_insights_and_canvai_routes_are_not_available(
+    client: TestClient,
+) -> None:
+    assert client.get("/api/v1/insights").status_code == 404
+    assert (
+        client.post("/api/v1/canvai/proposals", json={"command": "Protect sleep"}).status_code
+        == 404
+    )
 
 
 def test_notification_bulk_read_and_dismiss_are_persistent(client: TestClient) -> None:

@@ -23,12 +23,13 @@ import {
 import { Logo } from "@/components/common/logo";
 import { Badge, Card, ToastRegion } from "@/components/common/ui";
 import { useApp } from "@/components/common/app-provider";
+import { useOptionalAuth } from "@/components/auth/auth-provider";
 
 const benefits = [
   {
     icon: Brain,
-    title: "Reads every assignment",
-    body: "Canvai weighs type, points, and due date to estimate time, difficulty, and urgency.",
+    title: "Uses real assignment data",
+    body: "Deterministic rules use assignment type, points, and due dates to explain estimates and priority.",
   },
   {
     icon: CalendarCheck,
@@ -38,7 +39,7 @@ const benefits = [
   {
     icon: ArrowCounterClockwise,
     title: "Adapts when plans change",
-    body: "Miss a session or add an event and the week quietly rebuilds itself.",
+    body: "Changes produce a reviewable proposal; published calendar events are never rewritten without approval.",
   },
   {
     icon: Moon,
@@ -60,7 +61,7 @@ const steps = [
   },
   {
     icon: Sparkle,
-    title: "Canvai builds a plan",
+    title: "Build a draft plan",
     body: "Study sessions land in the free time you actually have.",
   },
   {
@@ -71,8 +72,24 @@ const steps = [
 ];
 
 export function LandingPage() {
-  const { theme, setTheme } = useApp();
+  const auth = useOptionalAuth();
+  const { calendarConnection, canvasConnection, theme, setTheme } = useApp();
   const isDark = theme === "dark";
+  const authenticated = auth?.status === "authenticated";
+  const workspaceLabel = authenticated ? "Open workspace" : "Sign in";
+  const workspaceHref = authenticated ? "/overview" : "/login";
+  const canvasStatus = canvasConnection?.connected
+    ? "● Connected"
+    : canvasConnection?.configured
+      ? "● Needs attention"
+      : authenticated
+        ? "● Checking"
+        : "● Sign in required";
+  const calendarStatus = calendarConnection?.connected
+    ? "● Connected"
+    : authenticated
+      ? "● Checking"
+      : "● Not connected";
   return (
     <div className="landing">
       <header className="landing-nav">
@@ -91,8 +108,8 @@ export function LandingPage() {
           >
             {isDark ? <Sun /> : <Moon />}
           </button>
-          <Link href="/overview" className="button button-primary">
-            Open demo <ArrowRight />
+          <Link href={workspaceHref} className="button button-primary">
+            {workspaceLabel} <ArrowRight />
           </Link>
         </div>
       </header>
@@ -101,17 +118,17 @@ export function LandingPage() {
           <div className="hero-copy">
             <span className="hero-kicker">
               <Sparkle weight="fill" />
-              Meet Canvai — your AI study planner
+              Deterministic, explainable study planning
             </span>
             <h1>Turn Canvas deadlines into a realistic study plan.</h1>
             <p>
-              Canvai analyzes your assignments, checks your schedule, and plans when you should
-              actually do the work — around school, rowing, and sleep.
+              Canvas Sweeper combines assignments, routines, preferences, and calendar availability
+              to create a draft you can review before anything is published.
             </p>
             <div className="hero-actions">
-              <Link className="button button-primary" href="/overview">
+              <Link className="button button-primary" href={workspaceHref}>
                 <SquaresFour weight="fill" />
-                Open the demo dashboard
+                {authenticated ? "Open your workspace" : "Sign in with Google"}
               </Link>
               <a className="button" href="#how">
                 See how it works
@@ -119,57 +136,9 @@ export function LandingPage() {
             </div>
             <div className="demo-note">
               <LockSimple />
-              Demo mode · not connected to live Canvas or Google Calendar yet.
-            </div>
-          </div>
-          <div className="product-preview" aria-label="Canvas Sweeper dashboard preview">
-            <div className="preview-chrome">
-              <i />
-              <i />
-              <i />
-              <span>Canvas Sweeper — Overview</span>
-              <Badge tone="warning">DEMO</Badge>
-            </div>
-            <div className="preview-body">
-              <div className="preview-greeting">
-                <div>
-                  <strong>Good evening, Maya</strong>
-                  <small>Wednesday · 2 sessions planned tonight</small>
-                </div>
-                <Badge tone="success">● Plan ready</Badge>
-              </div>
-              <div className="preview-metrics">
-                <div>
-                  <small>Due within 48h</small>
-                  <strong>5</strong>
-                </div>
-                <div>
-                  <small>Study today</small>
-                  <strong>1h 30m</strong>
-                </div>
-              </div>
-              <div className="preview-agenda">
-                <div>
-                  <i />
-                  <span>Rowing practice</span>
-                  <time>4:30</time>
-                </div>
-                <div>
-                  <i />
-                  <span>AP Seminar — draft</span>
-                  <time>8:30</time>
-                </div>
-                <div>
-                  <i />
-                  <span>Physics — test prep</span>
-                  <time>9:25</time>
-                </div>
-              </div>
-              <div className="preview-insight">
-                <Sparkle weight="fill" />
-                Two writing-heavy assignments this week — starting the essay tonight keeps Sunday
-                light.
-              </div>
+              {authenticated
+                ? "Private workspace · connection data stays in your account."
+                : "Sign in to create a private workspace and connect your providers."}
             </div>
           </div>
         </section>
@@ -214,12 +183,13 @@ export function LandingPage() {
               <div className="eyebrow">Connections</div>
               <h2>Bring your assignments and calendar together.</h2>
               <p>
-                You connect accounts during onboarding. Until then, Canvas Sweeper runs on realistic
-                sample data so you can explore the full experience.
+                {authenticated
+                  ? "Your account connections and imported work are available in your private workspace."
+                  : "Sign in to create an empty private workspace, then connect only the providers you choose."}
               </p>
               <div className="demo-note">
                 <LockSimple />
-                Independent concept demo — not affiliated with Instructure or Google.
+                Independent product — not affiliated with Instructure or Google.
               </div>
             </div>
             <div className="connection-cards">
@@ -231,7 +201,9 @@ export function LandingPage() {
                   <strong>Canvas</strong>
                   <small>Assignments, tests, due dates & points</small>
                 </div>
-                <Badge tone="warning">● Demo mode</Badge>
+                <Badge tone={canvasConnection?.connected ? "success" : "warning"}>
+                  {canvasStatus}
+                </Badge>
               </div>
               <div className="connection-card">
                 <span className="feature-icon">
@@ -241,7 +213,9 @@ export function LandingPage() {
                   <strong>Google Calendar</strong>
                   <small>Existing events & where study lands</small>
                 </div>
-                <Badge>● Not connected</Badge>
+                <Badge tone={calendarConnection?.connected ? "success" : "neutral"}>
+                  {calendarStatus}
+                </Badge>
               </div>
             </div>
           </Card>
@@ -280,10 +254,14 @@ export function LandingPage() {
         <section className="landing-section">
           <Card className="cta-card">
             <Broom className="feature-icon" />
-            <h2>Ready to sweep your Canvas?</h2>
-            <p>Explore the full planning experience with demo data — no account required.</p>
-            <Link className="button button-primary" href="/overview">
-              Open the demo dashboard <ArrowRight />
+            <h2>{authenticated ? "Your workspace is ready." : "Ready to sweep your Canvas?"}</h2>
+            <p>
+              {authenticated
+                ? "Open your private workspace to review imported assignments and connection status."
+                : "Sign in to start with an empty private workspace. No sample assignments are inserted."}
+            </p>
+            <Link className="button button-primary" href={workspaceHref}>
+              {authenticated ? "Open your workspace" : "Sign in"} <ArrowRight />
             </Link>
           </Card>
         </section>
@@ -302,7 +280,7 @@ export function LandingPage() {
           </div>
           <div className="footer-links">
             <strong>Explore</strong>
-            <Link href="/overview">Demo dashboard</Link>
+            <Link href={workspaceHref}>{authenticated ? "Workspace" : "Sign in"}</Link>
             <Link href="/assignments">Assignments</Link>
             <Link href="/canvai">Canvai</Link>
           </div>
@@ -315,8 +293,10 @@ export function LandingPage() {
         </div>
         <div className="footer-bottom">
           <div>
-            © 2026 Canvas Sweeper — concept demo. Not affiliated with Instructure Canvas or Google.
-            No integrations are currently active.
+            © 2026 Canvas Sweeper. Not affiliated with Instructure Canvas or Google.
+            {authenticated
+              ? " Connection status is shown from your private workspace."
+              : " Provider connections are not active until you sign in."}
           </div>
         </div>
       </footer>

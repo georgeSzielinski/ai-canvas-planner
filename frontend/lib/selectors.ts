@@ -1,9 +1,8 @@
 import type { Assignment, StudySession, WeeklyWorkload } from "@/types/domain";
-import { DEMO_REFERENCE_DATE } from "@/lib/demo-date";
 
 export const selectOverdueAssignments = (
   items: Assignment[],
-  referenceDate = DEMO_REFERENCE_DATE,
+  referenceDate = new Date().toISOString(),
 ) => {
   const reference = new Date(referenceDate).getTime();
   return items.filter(
@@ -19,7 +18,7 @@ export const selectMissingWork = (items: Assignment[]) => items.filter((item) =>
 export const selectUpcomingAssignments = (
   items: Assignment[],
   days = 7,
-  referenceDate = DEMO_REFERENCE_DATE,
+  referenceDate = new Date().toISOString(),
 ) => {
   const reference = new Date(referenceDate).getTime();
   return items.filter((item) => {

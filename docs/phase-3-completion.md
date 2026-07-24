@@ -30,7 +30,7 @@ Validated on 2026-07-22:
 - `npm audit --omit=dev --audit-level=high`, `pip-audit`, and `pip check`: no known vulnerabilities or broken requirements reported.
 - Live Canvas identity verification against the configured Sequoia origin succeeded without exposing or persisting the credential.
 
-The post-release datetime hardening normalizes aware Canvas timestamps to UTC before persistence, restores SQLite-loaded naive UTC values at comparison and serialization boundaries, and rejects naive provider timestamps. Authenticated clients now load `/workspace/bootstrap`; the legacy `/demo/bootstrap` route remains isolated from real backend mode.
+The post-release datetime hardening normalizes aware Canvas timestamps to UTC before persistence, restores SQLite-loaded naive UTC values at comparison and serialization boundaries, and rejects naive provider timestamps. Authenticated clients load `/workspace/bootstrap`; the obsolete demo bootstrap route has been removed.
 
 Automated tests and E2E fixtures contain no real Canvas credential. Live provider identity verification passed using the ignored local credential; a complete browser login-and-sync acceptance run remains an operator step because it requires an authenticated developer account. See `docs/canvas-integration.md`.
 

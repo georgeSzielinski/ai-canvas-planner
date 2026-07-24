@@ -5,18 +5,17 @@ test.beforeEach(async ({ page }) => {
   await installAuthenticatedSession(page);
 });
 
-test("landing opens the demo and all main pages navigate", async ({ page }) => {
+test("landing opens the authenticated workspace and all main pages navigate", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Turn Canvas deadlines/i })).toBeVisible();
   await page
-    .getByRole("link", { name: /Open the demo dashboard/i })
+    .getByRole("link", { name: /Open your workspace/i })
     .first()
     .click();
   await expect(page).toHaveURL(/\/overview$/);
   for (const [label, path] of [
     ["Assignments", "/assignments"],
-    ["Canvai", "/canvai"],
-    ["Insights", "/insights"],
+    ["Planning", "/canvai"],
     ["Settings", "/settings"],
     ["Overview", "/overview"],
   ] as const) {
@@ -64,14 +63,10 @@ test("setting persists across reload", async ({ page }) => {
   await expect(page.getByLabel("Display name")).toHaveValue("Maya Playwright");
 });
 
-test("Canvai generates a backend preview without silently applying it", async ({ page }) => {
+test("planning shows a truthful empty state before a real draft exists", async ({ page }) => {
   await page.goto("/canvai");
-  await page.getByRole("button", { name: "Protect sleep", exact: true }).click();
-  await expect(
-    page.getByText("Backend preview generated from the authenticated workspace."),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Preview only in Phase 2" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Apply changes" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "No schedule draft yet" })).toBeVisible();
+  await expect(page.getByText(/configure your routines and study preferences/i)).toBeVisible();
 });
 
 test("light and dark themes render without console errors", async ({ page }) => {

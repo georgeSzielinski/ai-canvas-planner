@@ -52,7 +52,6 @@ function safeCanvasError(error: unknown): string {
 
 export function CanvasIntegrationPanel() {
   const {
-    backendMode,
     canvasConnection,
     canvasSyncReport,
     canvasLoading,
@@ -64,17 +63,6 @@ export function CanvasIntegrationPanel() {
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
-
-  if (!backendMode) {
-    return (
-      <div className="canvas-integration-panel">
-        <div className="connection-health-row">
-          <Badge tone="neutral">Demo mode</Badge>
-          <span>Canvas fixtures are local and no provider credential is used.</span>
-        </div>
-      </div>
-    );
-  }
 
   const status = checking ? "checking" : (canvasConnection?.status ?? "not_verified");
   const configured = canvasConnection?.configured ?? false;

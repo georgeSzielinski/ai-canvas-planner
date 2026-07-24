@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { defaultSettings } from "@/lib/demo-data";
+import { defaultSettings } from "@/test/fixtures/demo-data";
 import { bootstrapService } from "@/services/bootstrap-service";
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));

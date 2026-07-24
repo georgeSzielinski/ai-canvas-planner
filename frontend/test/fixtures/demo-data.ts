@@ -2,14 +2,13 @@ import type {
   AppSettings,
   Assignment,
   Course,
-  DemoBootstrap,
   InsightMetric,
   Notification,
   RoutineBlock,
   StudySession,
   WeeklyWorkload,
 } from "@/types/domain";
-import { DEMO_REFERENCE_DATE, demoDate } from "@/lib/demo-date";
+import { DEMO_REFERENCE_DATE, demoDate } from "@/test/fixtures/demo-date";
 
 export const courses: Course[] = [
   { id: "course-seminar", name: "AP Seminar", shortName: "Seminar", color: "var(--c-seminar)" },
@@ -388,7 +387,7 @@ export const notifications: Notification[] = [
     id: "notif-calendar",
     kind: "connection",
     title: "Google Calendar",
-    body: "Demo mode is active; no events will be published.",
+    body: "Calendar is not connected; no events will be published.",
     timeLabel: "1d",
     read: true,
   },
@@ -579,7 +578,7 @@ export const insightMetrics: InsightMetric[] = [
   },
 ];
 
-export const demoBootstrap: DemoBootstrap = {
+export const demoBootstrap = {
   referenceDate: DEMO_REFERENCE_DATE,
   courses,
   assignments,
@@ -590,7 +589,7 @@ export const demoBootstrap: DemoBootstrap = {
   settings: defaultSettings,
   canvasConnection: {
     provider: "canvas",
-    status: "demo",
+    status: "not_connected",
     lastSync: "2 minutes ago",
     permissions: ["Read assignments", "Read submission status"],
   },

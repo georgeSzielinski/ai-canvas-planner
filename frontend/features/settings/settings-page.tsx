@@ -19,7 +19,7 @@ import { useApp } from "@/components/common/app-provider";
 import { CanvasIntegrationPanel } from "@/components/canvas/canvas-integration-panel";
 import { useOptionalAuth } from "@/components/auth/auth-provider";
 import { Badge, Button, Card, LoadingState, Modal, SectionHeader } from "@/components/common/ui";
-import { defaultSettings } from "@/lib/demo-data";
+
 import { courseToneClass } from "@/lib/course-style";
 import { ApiError } from "@/services/api-client";
 import { calendarService } from "@/services/calendar-service";
@@ -171,7 +171,7 @@ export function SettingsPage() {
     settings,
     refreshCalendarConnection,
     updateSettings,
-    resetDemo,
+
     showToast,
   } = useApp();
   const [draft, setDraft] = useState<AppSettings>(() => structuredClone(settings));
@@ -368,10 +368,7 @@ export function SettingsPage() {
       <div className="page-heading">
         <div>
           <h1>Settings</h1>
-          <p>
-            Control the routines, guardrails, and preferences Canvai uses in your{" "}
-            {backendMode ? "account workspace" : "local demo"}.
-          </p>
+          <p>Control the routines, guardrails, and preferences used by your account workspace.</p>
         </div>
         <Badge tone="accent">
           {backendMode ? "Saved to your account" : "Saved in this browser"}
@@ -518,7 +515,7 @@ export function SettingsPage() {
                     <strong>AI provider</strong>
                     <p>Local deterministic service</p>
                   </div>
-                  <Badge>{backendMode ? "No external AI" : "Demo provider"}</Badge>
+                  <Badge>No external AI</Badge>
                 </div>
               </div>
             </div>
@@ -1134,22 +1131,9 @@ export function SettingsPage() {
           </Card>
           <div className="settings-savebar">
             <span>
-              {backendMode
-                ? "Preferences are saved to your account; provider credentials remain server-side."
-                : "Changes are local and contain no credentials."}
+              Preferences are saved to your account; provider credentials remain server-side.
             </span>
             <div className="row">
-              {!backendMode && (
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    resetDemo();
-                    setDraft(structuredClone(defaultSettings));
-                  }}
-                >
-                  Reset to demo defaults
-                </Button>
-              )}
               <Button variant="primary" icon={<CheckCircle />} onClick={save}>
                 Save settings
               </Button>

@@ -181,10 +181,14 @@ def test_first_google_login_initializes_an_isolated_workspace(
     )
 
     assert callback.status_code == 302
-    bootstrap = anonymous_client.get("/api/v1/demo/bootstrap")
+    bootstrap = anonymous_client.get("/api/v1/workspace/bootstrap")
     assert bootstrap.status_code == 200
-    assert bootstrap.json()["assignments"]
-    assert all(item["id"].startswith("user-") for item in bootstrap.json()["assignments"])
+    assert bootstrap.json()["courses"] == []
+    assert bootstrap.json()["assignments"] == []
+    assert bootstrap.json()["sessions"] == []
+    assert bootstrap.json()["routine"] == []
+    assert bootstrap.json()["notifications"] == []
+    assert bootstrap.json()["workload"] == []
 
 
 def test_google_login_state_is_bound_to_the_starting_browser(

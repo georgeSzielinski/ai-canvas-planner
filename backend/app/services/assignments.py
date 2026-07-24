@@ -34,7 +34,7 @@ def to_schema(assignment: Assignment) -> AssignmentSchema:
     )
 
 
-def list_assignments(database: Session, user_id: str = "user-demo") -> list[AssignmentSchema]:
+def list_assignments(database: Session, user_id: str) -> list[AssignmentSchema]:
     statement = (
         select(Assignment)
         .join(Assignment.course)
@@ -45,9 +45,7 @@ def list_assignments(database: Session, user_id: str = "user-demo") -> list[Assi
     return [to_schema(item) for item in database.scalars(statement).all()]
 
 
-def get_assignment(
-    database: Session, assignment_id: str, user_id: str = "user-demo"
-) -> AssignmentSchema | None:
+def get_assignment(database: Session, assignment_id: str, user_id: str) -> AssignmentSchema | None:
     statement = (
         select(Assignment)
         .join(Assignment.course)
@@ -62,7 +60,7 @@ def update_assignment(
     database: Session,
     assignment_id: str,
     patch: AssignmentUpdate,
-    user_id: str = "user-demo",
+    user_id: str,
 ) -> AssignmentSchema | None:
     statement = (
         select(Assignment)

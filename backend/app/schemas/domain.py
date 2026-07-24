@@ -208,12 +208,6 @@ class WorkspaceBootstrapSchema(BaseModel):
     settings: AppSettingsSchema
 
 
-class DemoBootstrapSchema(WorkspaceBootstrapSchema):
-    reference_date: datetime
-    canvas_connection: ConnectionSchema
-    calendar_connection: ConnectionSchema
-
-
 class CanvaiProposalRequest(BaseModel):
     command: str = Field(min_length=3, max_length=180)
 

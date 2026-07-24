@@ -20,9 +20,9 @@ export function OnboardingPage() {
   const { status, user, completeOnboarding } = useAuth();
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [rowingDays, setRowingDays] = useState("Monday, Tuesday, Thursday, Friday");
-  const [rowingStart, setRowingStart] = useState("15:30");
-  const [rowingEnd, setRowingEnd] = useState("18:00");
+  const [rowingDays, setRowingDays] = useState("");
+  const [rowingStart, setRowingStart] = useState("");
+  const [rowingEnd, setRowingEnd] = useState("");
   const [form, setForm] = useState<OnboardingUpdate>({
     school_year: "",
     timezone: localTimezone(),

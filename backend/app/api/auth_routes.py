@@ -1,5 +1,4 @@
 import uuid
-from copy import deepcopy
 from typing import Annotated, Literal, cast
 from urllib.parse import quote, urlencode
 
@@ -23,7 +22,7 @@ from app.services.auth import (
     require_csrf,
     revoke_session,
 )
-from app.services.demo_data import DEFAULT_SETTINGS
+from app.services.defaults import default_settings
 from app.services.google import IDENTITY_SCOPES, GoogleProvider, GoogleProviderError
 from app.services.workspace import initialize_user_workspace
 
@@ -228,7 +227,7 @@ def google_sign_in_callback(
         )
         database.add(user)
         database.flush()
-        initial_settings = deepcopy(DEFAULT_SETTINGS)
+        initial_settings = default_settings()
         profile_payload = initial_settings.get("profile")
         if not isinstance(profile_payload, dict):
             profile_payload = {}

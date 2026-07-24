@@ -15,7 +15,7 @@ The visual system is extracted from the retained Claude Design export. Light mod
 | Accent | `#1d4ed8` | `#60a5fa` |
 | Focus ring | blue, 42% | light blue, 50% |
 
-Semantic colors are red (urgent/error), orange (high pressure), amber (warning/demo), green (ready/success), blue (study/Canvai), and slate (fixed events). Course colors remain purple AP Seminar, rose English, teal Precalculus, sky Physics, ochre Business, and indigo World History, with lighter dark-mode variants.
+Semantic colors are red (urgent/error), orange (high pressure), amber (warning), green (ready/success), blue (study/planning), and slate (fixed events). Course colors are assigned from a neutral accessible palette rather than from hardcoded course names.
 
 The source prototype used `#3b82f6` as its universal accent and lighter tertiary text. The production light accent, light status colors, and tertiary text are slightly deeper, while dark-mode accent and tertiary text are slightly brighter, so small labels and controls meet automated contrast checks. Hue, hierarchy, and visual identity are unchanged.
 

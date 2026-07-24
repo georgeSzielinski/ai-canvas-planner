@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { assignments } from "@/lib/demo-data";
+import { assignments } from "@/test/fixtures/demo-data";
 import { selectUpcomingAssignments } from "@/lib/selectors";
 
 it("uses the caller's reference time for upcoming assignments", () => {

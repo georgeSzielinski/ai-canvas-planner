@@ -10,16 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useOptionalAuth } from "@/components/auth/auth-provider";
-import {
-  assignments as initialAssignments,
-  courses as initialCourses,
-  defaultSettings,
-  insightMetrics as initialInsights,
-  notifications as initialNotifications,
-  routineBlocks as initialRoutine,
-  studySessions as initialSessions,
-  weeklyWorkload as initialWorkload,
-} from "@/lib/demo-data";
+import { defaultSettings } from "@/lib/default-settings";
 import type {
   AppSettings,
   Assignment,
@@ -38,9 +29,8 @@ import { bootstrapService } from "@/services/bootstrap-service";
 import { calendarService } from "@/services/calendar-service";
 import { canvasService } from "@/services/canvas-service";
 import { notificationsService } from "@/services/notifications-service";
-import { dataMode, services } from "@/services";
+import { services } from "@/services";
 
-const SETTINGS_KEY = "canvas-sweeper:settings";
 const THEME_KEY = "canvas-sweeper:theme";
 const backendDefaultSettings: AppSettings = {
   ...defaultSettings,
@@ -95,7 +85,7 @@ interface AppContextValue {
   addSession(assignmentId: string): void;
   removeSession(assignmentId: string, sessionId: string): void;
   updateSettings(settings: AppSettings): void;
-  resetDemo(): void;
+
   dismissNotification(id: string): void;
   markAllNotificationsRead(): void;
   setProposal(proposal: ScheduleProposal | null): void;
@@ -107,8 +97,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const auth = useOptionalAuth();
-  const scope =
-    dataMode === "backend" ? `${auth?.status ?? "missing"}:${auth?.user?.id ?? ""}` : "local";
+  const scope = `${auth?.status ?? "missing"}:${auth?.user?.id ?? ""}`;
   return (
     <ScopedAppProvider key={scope} auth={auth}>
       {children}
@@ -123,31 +112,15 @@ function ScopedAppProvider({
   children: ReactNode;
   auth: ReturnType<typeof useOptionalAuth>;
 }) {
-  const backendMode = dataMode === "backend";
-  const [courses, setCourses] = useState(() =>
-    backendMode ? [] : structuredClone(initialCourses),
-  );
-  const [assignments, setAssignments] = useState(() =>
-    backendMode ? [] : structuredClone(initialAssignments),
-  );
-  const [sessions, setSessions] = useState(() =>
-    backendMode ? [] : structuredClone(initialSessions),
-  );
-  const [routine, setRoutine] = useState(() =>
-    backendMode ? [] : structuredClone(initialRoutine),
-  );
-  const [workload, setWorkload] = useState(() =>
-    backendMode ? [] : structuredClone(initialWorkload),
-  );
-  const [insights, setInsights] = useState(() =>
-    backendMode ? [] : structuredClone(initialInsights),
-  );
-  const [settings, setSettings] = useState(() =>
-    structuredClone(backendMode ? backendDefaultSettings : defaultSettings),
-  );
-  const [notifications, setNotifications] = useState(() =>
-    backendMode ? [] : structuredClone(initialNotifications),
-  );
+  const backendMode = true;
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [routine, setRoutine] = useState<RoutineBlock[]>([]);
+  const [workload, setWorkload] = useState<WeeklyWorkload[]>([]);
+  const [insights, setInsights] = useState<InsightMetric[]>([]);
+  const [settings, setSettings] = useState(() => structuredClone(backendDefaultSettings));
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [calendarConnection, setCalendarConnection] = useState<CalendarConnection | null>(null);
   const [canvasConnection, setCanvasConnection] = useState<CanvasConnectionStatus | null>(null);
   const [canvasSyncReport, setCanvasSyncReport] = useState<CanvasSyncReport | null>(null);
@@ -159,25 +132,6 @@ function ScopedAppProvider({
   const [toast, setToast] = useState<ToastState | null>(null);
   const [theme, setThemeState] = useState<ThemePreference>("light");
   const canvasRequestGeneration = useRef(0);
-
-  useEffect(() => {
-    if (backendMode) return;
-    let cancelled = false;
-    try {
-      const savedSettings = localStorage.getItem(SETTINGS_KEY);
-      const savedTheme = localStorage.getItem(THEME_KEY) as ThemePreference | null;
-      queueMicrotask(() => {
-        if (cancelled) return;
-        if (savedSettings) setSettings(JSON.parse(savedSettings) as AppSettings);
-        if (savedTheme) setThemeState(savedTheme);
-      });
-    } catch {
-      /* defaults remain safe when storage is unavailable */
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [backendMode]);
 
   useEffect(() => {
     const resolved =
@@ -304,14 +258,6 @@ function ScopedAppProvider({
         if (!cancelled) setCalendarConnection(null);
       });
 
-    void services.insights
-      .get()
-      .then((loadedInsights) => {
-        if (!cancelled) setInsights(loadedInsights);
-      })
-      .catch(() => {
-        if (!cancelled) setInsights([]);
-      });
     return () => {
       cancelled = true;
       canvasRequestGeneration.current += 1;
@@ -346,66 +292,21 @@ function ScopedAppProvider({
       .catch(() => showToast("Could not save the assignment change."));
   };
   const addAssignment = (assignment: Assignment) => {
-    if (backendMode) {
-      showToast("Manual assignments are available in demo mode only.");
-      return;
-    }
-    setAssignments((items) => [assignment, ...items]);
-    showToast("Manual assignment added");
+    void assignment;
+    showToast("Manual assignments are not available for Canvas-connected workspaces.");
   };
   const addSession = (assignmentId: string) => {
-    if (backendMode) {
-      showToast("Scheduling changes are not part of Phase 2.");
-      return;
-    }
-    const assignment = assignments.find((item) => item.id === assignmentId);
-    if (!assignment) return;
-    const id = `session-manual-${assignmentId}-${assignment.scheduledSessionIds.length + 1}`;
-    const session: StudySession = {
-      id,
-      assignmentId,
-      title: `${assignment.title} — study block`,
-      startAt: new Date("2026-09-17T20:00:00-07:00").toISOString(),
-      durationMinutes: Math.min(assignment.estimatedMinutes, 45),
-      status: "planned",
-      source: "manual",
-    };
-    setSessions((items) => [...items, session]);
-    setAssignments((items) =>
-      items.map((item) =>
-        item.id === assignmentId
-          ? { ...item, scheduledSessionIds: [...item.scheduledSessionIds, id] }
-          : item,
-      ),
-    );
-    showToast("Study block added to the demo plan");
+    void assignmentId;
+    showToast("Study-session creation will be available in the planning workspace.");
   };
   const removeSession = (assignmentId: string, sessionId: string) => {
-    if (backendMode) {
-      showToast("Scheduling changes are not part of Phase 2.");
-      return;
-    }
-    setSessions((items) => items.filter((item) => item.id !== sessionId));
-    setAssignments((items) =>
-      items.map((item) =>
-        item.id === assignmentId
-          ? {
-              ...item,
-              scheduledSessionIds: item.scheduledSessionIds.filter((id) => id !== sessionId),
-            }
-          : item,
-      ),
-    );
-    showToast("Planned session removed");
+    void assignmentId;
+    void sessionId;
+    showToast("Study-session editing will be available in the planning workspace.");
   };
   const updateSettings = (value: AppSettings) => {
     setSettings(value);
-    if (!backendMode) localStorage.setItem(SETTINGS_KEY, JSON.stringify(value));
     setThemeState(value.profile.theme);
-    if (!backendMode) {
-      showToast("Settings saved locally");
-      return;
-    }
     void services.settings
       .update(value)
       .then((saved) => {
@@ -414,24 +315,7 @@ function ScopedAppProvider({
       })
       .catch(() => showToast("Could not save settings."));
   };
-  const resetDemo = () => {
-    if (backendMode) {
-      showToast("Demo reset is unavailable for authenticated data.");
-      return;
-    }
-    setAssignments(structuredClone(initialAssignments));
-    setSessions(structuredClone(initialSessions));
-    setRoutine(structuredClone(initialRoutine));
-    setWorkload(structuredClone(initialWorkload));
-    setInsights(structuredClone(initialInsights));
-    setSettings(structuredClone(defaultSettings));
-    setNotifications(structuredClone(initialNotifications));
-    setProposal(null);
-    setAppliedCommands([]);
-    setThemeState(defaultSettings.profile.theme);
-    localStorage.removeItem(SETTINGS_KEY);
-    showToast("Demo defaults restored");
-  };
+
   const dismissNotification = (id: string) => {
     setNotifications((items) => items.filter((item) => item.id !== id));
     if (backendMode) {
@@ -491,7 +375,7 @@ function ScopedAppProvider({
     addSession,
     removeSession,
     updateSettings,
-    resetDemo,
+
     dismissNotification,
     markAllNotificationsRead,
     setProposal,

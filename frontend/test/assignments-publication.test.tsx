@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
-import { assignments, courses, defaultSettings, studySessions } from "@/lib/demo-data";
+import { assignments, courses, defaultSettings, studySessions } from "@/test/fixtures/demo-data";
 import { AssignmentsPage } from "@/features/assignments/assignments-page";
 
 const { previewStudySession, publishStudySession } = vi.hoisted(() => ({

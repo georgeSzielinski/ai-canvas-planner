@@ -1,47 +1,48 @@
 # Architecture
 
-## Frontend layers
+## Runtime boundaries
 
-The Next.js App Router owns route composition and metadata. `components/` contains reusable shell, feedback, form, and visual primitives. `features/` contains page-scale domain experiences. `types/domain.ts` is the UI domain contract, while `lib/demo-data.ts` is the only fixture source and `lib/selectors.ts` derives workload and status values.
+Canvas Sweeper is a Next.js App Router frontend backed by a versioned FastAPI API and SQLAlchemy persistence. The browser never receives Google or Canvas credentials. OAuth/session state, encrypted provider credentials, synchronization locks, retry policy, and provider calls remain server-side.
 
-`AppProvider` remains focused on assignment/session changes, preferences, notifications, theme, proposals, and undo feedback. Phase 2 adds a separate authentication provider that validates the server session, supplies the current user/CSRF value, and redirects protected route groups without mixing identity into demo-domain state. Modal/drawer state stays close to its UI.
+The normal application has one data mode: authenticated backend data. An unauthenticated visitor sees marketing or sign-in states. A new authenticated account receives neutral preferences and otherwise-empty, user-scoped collections. API failures preserve the authenticated identity and previously loaded valid state; they never substitute fixtures.
 
-The service boundary is `services/`: a typed `ApiClient` and assignment, settings, insights, Canvai, Calendar, and Canvas interfaces isolate wire contracts. Components never scatter raw `fetch` calls. `AppProvider` hydrates the authenticated assignment workspace from user-scoped Canvas endpoints while keeping demo behavior separate.
+## Frontend
 
-## Backend layers
+`frontend/app/` composes routes and metadata. `components/` contains the shell, authentication gates, provider panels, and reusable feedback/form primitives. `features/` contains page-scale experiences. `types/` defines browser domain contracts, while `services/` owns typed API mappings. Components do not scatter raw provider requests.
 
-`api/routes.py` preserves Phase 1 contracts. `api/auth_routes.py`, `api/user_routes.py`, `api/calendar_routes.py`, and `api/canvas_routes.py` add typed versioned account/provider contracts. Pydantic schemas validate request and response shapes. Services own sessions/OAuth state, encrypted Calendar credentials, Canvas credential resolution/API calls/synchronization, busy-cache normalization, safe publication, assignment serialization, and deterministic classification/proposals. Alembic owns schema changes; `app.db.seed` is an explicit, destructive, idempotent demo reset and is never run during container startup.
+`AuthProvider` validates the server session and supplies the current user and CSRF state. `ProtectedWorkspace` gates private routes. `AppProvider` hydrates `/workspace/bootstrap` and user-scoped provider endpoints, preserving truthful loading, empty, disconnected, stale, and error states. Test data lives only under test directories and is injected by tests.
 
-The demo user remains explicit (`user-demo`), while Google login creates real user rows. All protected queries are scoped through the authenticated user. Opaque server-side sessions store hashes rather than raw cookie values. Google credentials are encrypted with a deployment-supplied Fernet key. SQLite is only the local default; the SQLAlchemy boundary allows PostgreSQL deployment.
+## Backend
 
-## Data flow
+`backend/app/api/` exposes authenticated, versioned routes. Dependencies resolve the current user before services run. Services scope every query and mutation by that user. Pydantic validates boundaries; SQLAlchemy owns transactions and constraints; Alembic is the only schema-migration mechanism.
 
-```text
-Public page ───────────────────────────────────────────────────────────────┐
-Protected page → AuthProvider → credentialed typed service → FastAPI     │
-                                                      │                  │
-                            session/user/calendar service → SQLAlchemy   │
-                                                      │                  │
-                                   Google provider adapter → Google APIs │
-                                   Canvas API adapter → Canvas APIs      │
-Phase 1 domain feature → typed service → fixtures or authenticated API ──┘
-```
+The backend currently owns:
 
-Dates originate from one fixed demo reference. Selectors compute overdue work, missing work, upcoming work, highest priority, workload, totals, conflicts, completion, and study time by subject.
+- opaque hashed sessions and Google OAuth state;
+- encrypted Google Calendar credentials and bounded Calendar synchronization;
+- environment-only Canvas credential resolution, safe URL validation, bounded pagination, synchronization locks, and user-scoped import;
+- assignment/settings serialization and UTC datetime normalization;
+- idempotent, planner-owned Calendar event mappings for existing study-session publication.
 
-## Provider integrations and future scheduling
+Application startup checks readiness and applies migrations through the configured startup command. No startup path inserts sample records, and no production seed command or demo bootstrap endpoint exists.
 
-- **Canvas (Phase 3):** the API/sync adapter and development-only environment credential provider are implemented. Reads use same-origin pagination, streamed per-response byte limits, bounded pages/records, timeouts, and retry ceilings. Synchronization uses user-scoped uniqueness, deterministic hashes, a process guard plus a database-enforced one-running-sync constraint, and partial-failure preservation. Staging/production reject the shared environment token; a production OAuth provider can add per-user institutions, encrypted credentials, refresh where supported, revocation, and multiple connections without changing normalization/sync contracts.
-- **Google Calendar (Phase 2):** server-side OAuth, encrypted refresh-token storage/refresh, discovery, minimal busy-time cache, idempotent study-event publishing, provider IDs, private ownership markers, and user edit locks are implemented. The product deliberately has no full calendar route.
-- **Scheduler:** introduce a deterministic constraint engine between normalized work/routines and schedule proposals. Keep sleep, fixed events, capacity, and explicit locks as hard constraints.
-- **Canvai:** replace the demo implementation with a provider-agnostic analysis adapter. Keep deterministic validation, structured proposal schemas, preview/approval, audit history, and undo around any AI output.
+## Ownership and provider data
 
-## Security boundaries
+Provider-owned Canvas fields are imported as source data. User planning metadata is stored separately or in explicitly user-owned columns and must never overwrite provider truth. Google Calendar operations target only events with durable planner ownership mappings; unrelated events are read only as busy time and are never modified or deleted.
 
-- Public access is limited to landing, login, privacy, terms, health/readiness, and OAuth callbacks/start routes required to establish identity.
-- User data requires a non-expired, non-revoked opaque session; mutations also require the session-bound CSRF value.
-- OAuth state is short-lived, HMAC-signed, action-bound, and user-bound for Calendar connection.
-- Browser code never receives Google access/refresh tokens or backend secrets.
-- Browser code never receives the Canvas token. Canvas HTML is stored as safe plain text; assignment and pagination URLs are restricted to the configured institution origin.
-- Busy cache omits event titles/descriptions/attendees. Calendar publication targets only the chosen study calendar and refuses provider events without Canvas Sweeper’s private ownership marker.
-- Calendar operations persist user-scoped connection notifications and expose them through authenticated read/mark-read endpoints. Travel-conflict detection uses provider locations only in memory.
+## Time policy
+
+Aware datetimes are converted to UTC before persistence. Provider parsers reject naive datetimes. SQLite-loaded naive UTC values are restored at repository boundaries before comparison or serialization. Local dates, times, weekdays, recurrence, and daylight-saving behavior are interpreted in the user or routine IANA timezone, then converted to UTC intervals for conflict and scheduling operations.
+
+## Deterministic planning direction
+
+Phase 4 adds user-owned routines, preferences, course rules, assignment planning profiles, explainable workload estimation and scoring, availability calculation, versioned schedule drafts, explicit approval, safe publication, rescheduling proposals, and progress tracking. The same normalized source snapshot and settings must produce the same scoring and scheduling output. Heuristics are described as deterministic rules, never as model-generated intelligence.
+
+## Security invariants
+
+- Every private API is authenticated and user-scoped.
+- Browser code never receives OAuth secrets, refresh tokens, Canvas tokens, encryption keys, or authorization headers.
+- Provider URLs are allowlisted/validated and redirects remain controlled.
+- OAuth state, CSRF protections, encrypted credential storage, bounded pagination, finite retries, synchronization locks, and sanitized errors remain mandatory.
+- Audit records exclude secrets and unnecessary private calendar content.
+- Material schedule or published-event changes require a reviewable proposal and explicit approval.

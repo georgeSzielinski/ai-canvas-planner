@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import {
   assignments,
@@ -8,22 +7,11 @@ import {
   notifications,
   studySessions,
   weeklyWorkload,
-} from "@/lib/demo-data";
+} from "@/test/fixtures/demo-data";
 import { OverviewPage } from "@/features/dashboard/overview-page";
 
-const { proposeScheduleChange } = vi.hoisted(() => ({
-  proposeScheduleChange: vi.fn().mockResolvedValue({
-    id: "proposal-api",
-    command: "Rebuild the week",
-    summary: "Backend proposal",
-    reasoning: "Deterministic backend response",
-    changes: [],
-    status: "preview",
-  }),
-}));
-
-vi.mock("@/services", () => ({
-  services: { canvai: { proposeScheduleChange } },
+const { appState } = vi.hoisted(() => ({
+  appState: { value: null as Record<string, unknown> | null },
 }));
 
 vi.mock("@/components/auth/auth-provider", () => ({
@@ -31,29 +19,60 @@ vi.mock("@/components/auth/auth-provider", () => ({
 }));
 
 vi.mock("@/components/common/app-provider", () => ({
-  useApp: () => ({
+  useApp: () =>
+    appState.value ?? {
+      backendMode: true,
+      loading: false,
+      calendarConnection: { connected: true, status: "connected" },
+      canvasConnection: { connected: true, status: "connected" },
+      assignments,
+      courses,
+      sessions: studySessions,
+      notifications,
+      workload: weeklyWorkload,
+      settings: defaultSettings,
+      showToast: vi.fn(),
+      setProposal: vi.fn(),
+      proposal: null,
+      applyProposal: vi.fn(),
+    },
+}));
+
+it("renders only metrics computed from the authenticated workspace", () => {
+  appState.value = null;
+  render(<OverviewPage />);
+
+  expect(screen.queryByRole("button", { name: "Quick add" })).not.toBeInTheDocument();
+  expect(screen.getByText("Real workspace")).toBeInTheDocument();
+  expect(screen.getByText("Canvas connected")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open planning" })).toHaveAttribute("href", "/canvai");
+});
+
+it("renders an all-caught-up state when every imported Canvas assignment is complete", () => {
+  const completedAssignments = assignments.map((assignment) => ({
+    ...assignment,
+    completionState: "completed" as const,
+    submissionStatus: "graded" as const,
+    source: "canvas" as const,
+  }));
+
+  appState.value = {
     backendMode: true,
     loading: false,
     calendarConnection: { connected: true, status: "connected" },
-    assignments,
+    canvasConnection: { connected: true, status: "connected" },
+    assignments: completedAssignments,
     courses,
-    sessions: studySessions,
+    sessions: [],
     notifications,
-    workload: weeklyWorkload,
+    workload: [],
     settings: defaultSettings,
     showToast: vi.fn(),
     setProposal: vi.fn(),
     proposal: null,
     applyProposal: vi.fn(),
-  }),
-}));
+  };
 
-it("uses the backend Canvai service and hides demo-only assignment creation", async () => {
-  const user = userEvent.setup();
   render(<OverviewPage />);
-
-  expect(screen.queryByRole("button", { name: "Quick add" })).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Rebuild week" }));
-
-  expect(proposeScheduleChange).toHaveBeenCalledWith("Rebuild the week");
+  expect(screen.getByRole("heading", { name: "You’re all caught up" })).toBeInTheDocument();
 });

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function Logo({
   compact = false,
-  subtitle = "Demo workspace",
+  subtitle = "Study planner",
 }: {
   compact?: boolean;
   subtitle?: string;

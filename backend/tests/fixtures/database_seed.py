@@ -24,7 +24,7 @@ from app.models import (
     UserProfile,
     UserSettings,
 )
-from app.services.demo_data import (
+from tests.fixtures.demo_data import (
     ASSIGNMENTS,
     COURSES,
     DEFAULT_SETTINGS,

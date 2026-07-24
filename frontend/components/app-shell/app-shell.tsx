@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Bell,
-  ChartBar,
   CheckCircle,
   GearSix,
   GraduationCap,
@@ -21,7 +20,7 @@ import {
   ArrowRight,
 } from "@phosphor-icons/react";
 import { AccountMenu } from "@/components/auth/account-menu";
-import { useOptionalAuth } from "@/components/auth/auth-provider";
+
 import { Logo } from "@/components/common/logo";
 import { useApp } from "@/components/common/app-provider";
 import { Badge, ToastRegion } from "@/components/common/ui";
@@ -29,8 +28,7 @@ import { Badge, ToastRegion } from "@/components/common/ui";
 const navItems = [
   { href: "/overview", label: "Overview", icon: SquaresFour },
   { href: "/assignments", label: "Assignments", icon: ListChecks },
-  { href: "/canvai", label: "Canvai", icon: Sparkle },
-  { href: "/insights", label: "Insights", icon: ChartBar },
+  { href: "/canvai", label: "Planning", icon: Sparkle },
   { href: "/settings", label: "Settings", icon: GearSix },
 ];
 
@@ -45,9 +43,7 @@ const notificationIcons = {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const auth = useOptionalAuth();
   const {
-    backendMode,
     calendarConnection,
     canvasConnection,
     notifications,
@@ -73,19 +69,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const active = navItems.find((item) => pathname.startsWith(item.href)) ?? navItems[0];
   const unread = notifications.filter((item) => !item.read).length;
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
-  const canvasLabel = !backendMode
-    ? "Demo mode · synced 2m ago"
-    : canvasConnection?.connected
-      ? `Connected${canvasConnection.last_successful_sync_at ? " · synced" : ""}`
-      : canvasConnection?.configured
-        ? "Needs attention"
-        : "Not configured";
-  const canvasTone =
-    !backendMode || canvasConnection?.connected
-      ? "green"
-      : canvasConnection?.configured
-        ? "amber"
-        : "gray";
+  const canvasLabel = canvasConnection?.connected
+    ? `Connected${canvasConnection.last_successful_sync_at ? " · synced" : ""}`
+    : canvasConnection?.configured
+      ? "Needs attention"
+      : "Not configured";
+  const canvasTone = canvasConnection?.connected
+    ? "green"
+    : canvasConnection?.configured
+      ? "amber"
+      : "gray";
 
   return (
     <div className="app-frame">
@@ -102,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <X />
           </button>
         </div>
-        <Logo subtitle={backendMode ? "Private workspace" : undefined} />
+        <Logo subtitle="Private workspace" />
         <div className="canvai-status">
           <span className="canvai-mark">
             <Sparkle weight="fill" />
@@ -156,20 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
             <i className={`dot ${calendarConnection?.connected ? "green" : "gray"}`} />
           </div>
-          {auth?.user ? (
-            <AccountMenu />
-          ) : (
-            <button
-              className="profile-row"
-              onClick={() => showToast("Sign in to manage your profile")}
-            >
-              <span className="avatar">MK</span>
-              <span>
-                <strong>Maya Kessler</strong>
-                <small>Junior · Demo student</small>
-              </span>
-            </button>
-          )}
+          <AccountMenu />
         </div>
       </aside>
       {(mobileMenu || drawer) && (
@@ -196,9 +176,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <div className="topbar-title">
             <strong>{active.label}</strong>
-            <Badge tone={backendMode ? "success" : "warning"}>
-              {backendMode ? "YOUR DATA" : "DEMO DATA"}
-            </Badge>
+            <Badge tone="success">YOUR DATA</Badge>
           </div>
           <div className="topbar-actions">
             <span className="canvai-pill desktop-only">
@@ -285,11 +263,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
           {!notifications.length && <p className="muted center">You’re all caught up.</p>}
         </div>
-        <div className="drawer-note">
-          {backendMode
-            ? "Notifications are saved to your account."
-            : "Demo notifications — actions are simulated."}
-        </div>
+        <div className="drawer-note">Notifications are saved to your account.</div>
       </aside>
       <ToastRegion />
     </div>

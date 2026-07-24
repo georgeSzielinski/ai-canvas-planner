@@ -169,7 +169,7 @@ export function EmptyState({
   );
 }
 
-export function LoadingState({ label = "Loading demo data" }: { label?: string }) {
+export function LoadingState({ label = "Loading workspace" }: { label?: string }) {
   return (
     <div className="skeleton-stack" role="status" aria-label={label}>
       <span className="skeleton skeleton-title" />

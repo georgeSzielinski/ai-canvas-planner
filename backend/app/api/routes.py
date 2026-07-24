@@ -12,24 +12,16 @@ from app.schemas.domain import (
     AppSettingsSchema,
     AssignmentSchema,
     AssignmentUpdate,
-    CanvaiProposalRequest,
-    ConnectionSchema,
     CourseSchema,
-    DemoBootstrapSchema,
-    InsightMetricSchema,
     NotificationSchema,
     RoutineBlockSchema,
-    ScheduleProposalSchema,
     StatusSchema,
     StudySessionSchema,
-    WorkloadSchema,
     WorkspaceBootstrapSchema,
 )
 from app.schemas.phase2 import ActionStatusSchema
 from app.services import assignments as assignment_service
 from app.services.auth import SessionGrant, get_current_session, require_csrf
-from app.services.canvai import propose
-from app.services.demo_data import INSIGHTS, REFERENCE_DATE, WORKLOAD
 
 DbSession = Annotated[Session, Depends(get_db)]
 CurrentSession = Annotated[SessionGrant, Depends(get_current_session)]
@@ -84,7 +76,7 @@ def assignment_update(
 def settings_read(database: DbSession, grant: CurrentSession) -> AppSettingsSchema:
     settings = database.scalar(select(UserSettings).where(UserSettings.user_id == grant.user.id))
     if not settings:
-        raise HTTPException(status_code=404, detail="Demo settings not found")
+        raise HTTPException(status_code=404, detail="Settings not found")
     return AppSettingsSchema.model_validate(settings.payload)
 
 
@@ -94,15 +86,10 @@ def settings_update(
 ) -> AppSettingsSchema:
     settings = database.scalar(select(UserSettings).where(UserSettings.user_id == grant.user.id))
     if not settings:
-        raise HTTPException(status_code=404, detail="Demo settings not found")
+        raise HTTPException(status_code=404, detail="Settings not found")
     settings.payload = payload.model_dump(mode="json")
     database.commit()
     return payload
-
-
-@api.get("/insights", response_model=list[InsightMetricSchema])
-def insights(_grant: CurrentSession) -> list[InsightMetricSchema]:
-    return [InsightMetricSchema.model_validate(item) for item in INSIGHTS]
 
 
 @api.get("/notifications", response_model=list[NotificationSchema])
@@ -160,11 +147,6 @@ def notification_dismiss(
     return ActionStatusSchema(status="dismissed", message="Notification dismissed.")
 
 
-@api.post("/canvai/proposals", response_model=ScheduleProposalSchema)
-def canvai_proposal(payload: CanvaiProposalRequest, _grant: CsrfSession) -> ScheduleProposalSchema:
-    return propose(payload.command)
-
-
 def _workspace_bootstrap(database: Session, user_id: str) -> WorkspaceBootstrapSchema:
     stored_settings = database.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
     if not stored_settings:
@@ -207,27 +189,6 @@ def _workspace_bootstrap(database: Session, user_id: str) -> WorkspaceBootstrapS
 @api.get("/workspace/bootstrap", response_model=WorkspaceBootstrapSchema)
 def workspace_bootstrap(database: DbSession, grant: CurrentSession) -> WorkspaceBootstrapSchema:
     return _workspace_bootstrap(database, grant.user.id)
-
-
-@api.get("/demo/bootstrap", response_model=DemoBootstrapSchema)
-def demo_bootstrap(database: DbSession, grant: CurrentSession) -> DemoBootstrapSchema:
-    workspace = _workspace_bootstrap(database, grant.user.id)
-    return DemoBootstrapSchema(
-        **workspace.model_dump(exclude={"workload"}),
-        reference_date=REFERENCE_DATE,
-        workload=[WorkloadSchema.model_validate(item) for item in WORKLOAD],
-        canvas_connection=ConnectionSchema(
-            provider="canvas",
-            status="demo",
-            last_sync="2 minutes ago",
-            permissions=["Read assignments", "Read submission status"],
-        ),
-        calendar_connection=ConnectionSchema(
-            provider="google-calendar",
-            status="not_connected",
-            permissions=["Read busy times", "Create study events"],
-        ),
-    )
 
 
 router.include_router(api)

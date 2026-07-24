@@ -29,12 +29,10 @@ cp frontend/.env.example frontend/.env.local
 cp backend/.env.example backend/.env
 # Configure Google OAuth/Calendar and optional local Canvas credentials; see docs below.
 make migrate
-# Optional for a disposable demo database only:
-make seed
 ```
 
 Populate only the ignored `backend/.env`. Do not add OAuth secrets, Canvas tokens, API keys, credential JSON, session secrets, access tokens, or refresh tokens to source control.
-`make seed` is destructive: it replaces all current application data with the deterministic demo workspace. Container startup runs migrations but never seeds or resets persisted data.
+Container startup runs migrations but never seeds or resets persisted data.
 
 ## Run locally
 
@@ -60,7 +58,6 @@ make lint                 # ESLint, TypeScript, Ruff, and mypy
 make format               # Prettier and Ruff formatting/fixes
 make build                # Next.js production build
 make migrate              # alembic upgrade head
-make seed                 # destructive reset to the deterministic local demo seed
 cd frontend && npm run test:e2e
 ```
 
@@ -68,7 +65,6 @@ cd frontend && npm run test:e2e
 
 - `GET /health`
 - `GET /ready`
-- `GET /api/v1/demo/bootstrap`
 - `GET /api/v1/auth/session`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/google/start`, `GET /api/v1/auth/google/callback`
 - `GET/PATCH /api/v1/user/profile`, `PUT /api/v1/user/onboarding`
@@ -88,17 +84,14 @@ cd frontend && npm run test:e2e
 - `PATCH /api/v1/assignments/{assignment_id}`
 - `GET /api/v1/settings`
 - `PATCH /api/v1/settings`
-- `GET /api/v1/insights`
-- `POST /api/v1/canvai/proposals`
 
 Error responses retain FastAPI's `detail` field for compatibility and also include stable `error.code` and `error.message` fields for clients.
 
 ## Repository structure
 
 ```text
-frontend/          Next.js UI, domain types, fixtures, state, services, and tests
-backend/           FastAPI, Pydantic, SQLAlchemy, Alembic, seed, and tests
-design-reference/  Preserved Claude Design export; never used at runtime
+frontend/          Next.js UI, domain types, authenticated state, services, and tests
+backend/           FastAPI, Pydantic, SQLAlchemy, Alembic, and tests
 docs/              Architecture, design system, completion notes, and roadmap
 scripts/           Reserved for cross-project automation
 ```

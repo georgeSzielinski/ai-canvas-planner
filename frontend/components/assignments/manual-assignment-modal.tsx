@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { courses } from "@/lib/demo-data";
 import { useApp } from "@/components/common/app-provider";
 import { Button, Modal } from "@/components/common/ui";
 import type { Assignment, AssignmentType, Priority } from "@/types/domain";
@@ -19,7 +18,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function ManualAssignmentModal({ open, onClose }: { open: boolean; onClose(): void }) {
-  const { addAssignment } = useApp();
+  const { addAssignment, courses } = useApp();
   const {
     register,
     handleSubmit,
@@ -27,7 +26,12 @@ export function ManualAssignmentModal({ open, onClose }: { open: boolean; onClos
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { courseId: courses[0].id, type: "homework", estimatedMinutes: 45, points: 20 },
+    defaultValues: {
+      courseId: courses[0]?.id ?? "",
+      type: "homework",
+      estimatedMinutes: 45,
+      points: 20,
+    },
   });
   const submit = (values: FormValues) => {
     const priority: Priority = values.type === "test" ? "high" : "medium";
@@ -35,7 +39,7 @@ export function ManualAssignmentModal({ open, onClose }: { open: boolean; onClos
       id: `manual-${values.title.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`,
       courseId: values.courseId,
       title: values.title,
-      description: "Manually added in the Phase 1 demo.",
+      description: "Manually added assignment.",
       type: values.type as AssignmentType,
       dueAt: new Date(values.dueAt).toISOString(),
       points: values.points,

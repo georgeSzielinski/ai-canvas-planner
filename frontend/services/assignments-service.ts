@@ -1,4 +1,3 @@
-import { assignments as demoAssignments } from "@/lib/demo-data";
 import type { Assignment } from "@/types/domain";
 import { apiClient } from "./api-client";
 
@@ -71,21 +70,6 @@ export interface AssignmentsService {
   get(id: string): Promise<Assignment>;
   update(id: string, patch: Partial<Assignment>): Promise<Assignment>;
 }
-
-export const demoAssignmentsService: AssignmentsService = {
-  async list() {
-    return structuredClone(demoAssignments);
-  },
-  async get(id) {
-    const item = demoAssignments.find((assignment) => assignment.id === id);
-    if (!item) throw new Error("Assignment not found");
-    return structuredClone(item);
-  },
-  async update(id, patch) {
-    const item = await this.get(id);
-    return { ...item, ...patch };
-  },
-};
 
 export const backendAssignmentsService: AssignmentsService = {
   list: async () =>

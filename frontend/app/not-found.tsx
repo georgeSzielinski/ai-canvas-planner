@@ -9,9 +9,7 @@ export default function NotFound() {
           <Broom />
         </span>
         <h1>This plan wandered off.</h1>
-        <p>
-          The page you requested does not exist. Your demo assignments and settings are still safe.
-        </p>
+        <p>The page you requested does not exist. Your account data has not been changed.</p>
         <Link className="button button-primary" href="/overview">
           <ArrowLeft />
           Back to overview
